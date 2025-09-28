@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <title>login,register</title>
+  </head>
+  <body>
+    {% include 'accounts/account_block.html' %}
+    <script>
+        document.addEventListener('auth:login',(e)=>{
+          location.href = '{{next|escapejs}}';
+        });
+    </script>
+  </body>
+</html>
