@@ -1,0 +1,87 @@
+<div class="account-block" id="accountBlock-{{ block_id|default:'1' }}">
+  <button type="button" class="modeButton">회원가입</button>
+
+  <form class="loginForm" method="post">
+    {% csrf_token %}
+    <label>아이디</label>
+    <input name="username" autocomplete="username" required>
+    <label>비밀번호</label>
+    <input name="password" type="password" autocomplete="current-password" required>
+    <label><input type="checkbox" name="remember" value="1"> 로그인 유지</label>
+    <button type="submit">로그인</button>
+  </form>
+
+  <form class="registerForm" method="post" hidden>
+    {% csrf_token %}
+    <label>아이디</label>
+    <input name="username" autocomplete="username" required>
+    <label>비밀번호</label>
+    <input name="password1" type="password" autocomplete="new-password" required>
+    <label>비밀번호 확인</label>
+    <input name="password2" type="password" autocomplete="new-password" required>
+    <button type="submit">회원가입</button>
+  </form>
+
+  <div class="error" style="color:red"></div>
+</div>
+
+<script>
+(() => {
+  // 루트 스코프: 이 include 블록 안에서만 요소를 찾음
+  const root = document.getElementById('accountBlock-{{ block_id|default:"1" }}');
+  const modeButton   = root.querySelector('.modeButton');
+  const loginForm    = root.querySelector('.loginForm');
+  const registerForm = root.querySelector('.registerForm');
+  const errorBox     = root.querySelector('.error');
+
+  // 초기 상태: 로그인 폼 보이기
+  loginForm.hidden = false;
+  registerForm.hidden = true;
+  modeButton.textContent = '회원가입';
+
+  modeButton.addEventListener('click', () => {
+    const showingLogin = !loginForm.hidden;
+    loginForm.hidden    = showingLogin;
+    registerForm.hidden = !showingLogin;
+    modeButton.textContent = showingLogin ? '로그인' : '회원가입';
+  });
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorBox.textContent = '';
+    const fd = new FormData(loginForm);
+    const r  = await fetch("{% url 'accounts:login_api' %}", {
+      method: "POST",
+      body: fd,                         // csrfmiddlewaretoken 포함
+      credentials: "same-origin",
+    });
+    const data = await r.json();
+    if (r.ok && data.ok) {
+      document.dispatchEvent(new CustomEvent('auth:login', {
+        detail: data.user || null  // API에서 사용자 정보도 주면 전달
+      }));
+    } else {
+      errorBox.textContent = Object.values(data.errors || {}).flat().join(" / ");
+    }
+  });
+
+  registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorBox.textContent = '';
+    const fd = new FormData(registerForm);
+    const r  = await fetch("{% url 'accounts:register_api' %}", {
+      method: "POST",
+      body: fd,                         // csrfmiddlewaretoken 포함
+      credentials: "same-origin",
+    });
+    const data = await r.json();
+    if (r.ok && data.ok) {
+      document.dispatchEvent(new CustomEvent('auth:login', {
+        detail: data.user || null  // API에서 사용자 정보도 주면 전달
+      }));
+    } else {
+      errorBox.textContent = Object.values(data.errors || {}).flat().join(" / ");
+    }
+  });
+})();
+</script>

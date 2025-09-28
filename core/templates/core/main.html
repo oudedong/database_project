@@ -1,0 +1,432 @@
+{% extends 'core/base.html' %}
+{% block etc %}
+<style>
+    .board { 
+        display:grid;
+        background:#34495e; 
+        border: 2px solid black;
+        position: relative;
+    }
+    .tile  { 
+        background:#f2f2f2; 
+        border-radius:10px; 
+        display:flex; 
+        align-items:center; 
+        justify-content:center; 
+        user-select:none; 
+    }
+    .container {
+        display: flex; /* Flexbox 컨테이너로 만듭니다. */
+        flex-direction: column; /* 자식들을 세로로 쌓습니다. */
+        align-items: center; /* 모든 자식들을 가로축 중앙에 정렬합니다. */
+    }
+    .wires {
+        position: absolute;
+        inset:0;
+        pointer-events: none;
+    }
+    .wires line {
+        stroke:#333;
+        stroke-width: 2;
+        stroke-linecap: round;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+{% block title %}tree_puzzle{% endblock %}
+{% block content %}
+<div class="container">
+    <div id="hud">Score: <span id="score">0</span> • Time: <span id="time">0.0</span>s • next: <span id="next">1</span></div>
+    <div id="board" class="board">
+        <svg id="wires" class="wires" aria-hidden="true"></svg>
+    </div>
+    <div style="margin-top:12px;">
+        <button id="restart">Restart</button>
+        {% if user.is_authenticated %}
+        <button id="submit" disabled>Submit</button>
+        {% endif %}
+    </div>
+</div>
+<script>
+
+    class Node{
+        static max = 1;
+        static N = undefined;
+        static cnt_empty = undefined;
+        static lastClickedNode = undefined;
+        static STATUS= {
+            EMPTY: 0, //값도 없도 할당도 불가.
+            OFF  : 1, //값을 가지고 있고 주변에 EMPTY인 노드를 가짐
+            ON   : 2, //값을 가지고 있지않지만 할당가능한 노드
+        };
+        static adjacent = [[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]];
+        constructor(x, y, map, div, value=undefined, parent=undefined){
+            this.x = x;
+            this.y = y;
+            this.map = map;
+            this.value  = value;
+            this.child  = [];
+            this.tempChilds =[];
+            this.parent = parent;
+            this.status = Node.STATUS.EMPTY;
+            this.div = div
+            this.child_lines = [];
+            if(value){
+                this.status = Node.STATUS.OFF;
+            }
+        }
+        reset(){
+            if(this.status != Node.STATUS.EMPTY){//차있던 타일을 제거시
+                Node.cnt_empty += 1;
+                console.log('after disconnect, cnt_empty',Node.cnt_empty)
+            }
+            this.parent = undefined;
+            this.status = Node.STATUS.EMPTY;
+            this.value = undefined;
+        }
+        clear_line(){
+            for(let i = 0; i <this.child_lines.length; i++){
+                this.child_lines[i].remove();
+            }
+            this.child_lines = []
+        }
+        status_Changed(){
+            if(this.value > Node.max){
+                Node.max = this.value;
+            }
+            document.dispatchEvent(new CustomEvent('block:status_Changed', {
+                    detail:{node:this}
+            }));
+            if(this.child.length === 0 && (this.parent != undefined)){
+                this.parent.checkChilds();
+            }
+        }
+        round_end(){
+            document.dispatchEvent(new CustomEvent('round_end'));//라운드 종료시...
+        }
+        checkChilds(){
+            /*
+            자식중에 값이 같은 노드가 있음:
+                자식이 자식을 가짐->무시
+                자식이 없음 -> 합침
+            자식들의 합이 같음:
+                아무 자식이 자식을 가짐->무시
+                모든 자식이 자식이 없음 -> 합침
+            */
+            let sum = 0;
+            let hasChild = false;
+            const node_changed = [];
+
+            for(let i=0; i < this.child.length; i++){
+                if(this.child[i].value === this.value && this.child[i].child.length === 0){
+                    this.value += this.child[i].value;
+                    this.child[i].reset();
+                    node_changed.push(...this.child.splice(i,1));
+                    break;
+                }
+                if(this.child[i].child.length > 0) hasChild = true;
+                sum += this.child[i].value;
+            }
+            if(sum === this.value){
+                if(hasChild) return;
+                this.value += sum;
+                for(let i=0; i < this.child.length; i++){
+                    this.child[i].reset();
+                }
+                node_changed.push(...this.child);
+                this.child = [];
+            }
+            if(node_changed.length > 0){
+                node_changed.push(this);
+                for(let i = 0; i < node_changed.length; i++){
+                   node_changed[i].status_Changed();
+                }
+            }
+        }
+        unset_on_titles(){
+            if(Node.lastClickedNode){
+                let node_changed = [];
+                for(let i=0; i < Node.lastClickedNode.tempChilds.length; i++){
+                    if(Node.lastClickedNode.tempChilds[i].status===Node.STATUS.ON){
+                        Node.lastClickedNode.tempChilds[i].status = Node.STATUS.EMPTY;
+                        node_changed.push(Node.lastClickedNode.tempChilds[i]);
+                    }
+                }
+                for(let i = 0; i < node_changed.length; i++){
+                    node_changed[i].status_Changed();
+                }   
+            }
+        }
+        clicked(val){
+            if(this.status === Node.STATUS.EMPTY){
+                console.log('invalid_node...');
+                return;
+            }
+            if(this.value === val){
+                this.unset_on_titles();
+                this.value += val;
+                this.status_Changed();
+                this.round_end();
+                return;
+            }
+            if(this.status === Node.STATUS.OFF){
+                this.unset_on_titles();
+                if(this.child.length >= 3){
+                    console.log('this node is full....')
+                    return;
+                }
+                this.tempChilds = []; //배열 초기화
+                for(let i=0; i < 8; i++){
+                    const cur = Node.adjacent[i]
+                    const cur_x = this.x + cur[0];
+                    const cur_y = this.y + cur[1];
+                    if(cur_x < 0 || cur_x >= Node.N || cur_y < 0 || cur_y >= Node.N) continue;
+
+                    const adjacent_node = this.map[cur_y][cur_x]
+                    if(adjacent_node.status === Node.STATUS.EMPTY){
+                        adjacent_node.status = Node.STATUS.ON;
+                        this.tempChilds.push(adjacent_node);
+                    }
+                }
+                Node.lastClickedNode = this;//마지막으로 활성화 한 노드
+                for(let i = 0; i < this.tempChilds.length; i++){
+                   this.tempChilds[i].status_Changed();
+                }
+                return;
+            }
+            if(this.status === Node.STATUS.ON){
+                Node.cnt_empty -= 1;//노드한칸 차지...
+                console.log('after connect, cnt_empty',Node.cnt_empty)
+                this.value = val;
+                this.status = Node.STATUS.OFF;
+                Node.lastClickedNode.child.push(this);
+                this.parent = Node.lastClickedNode;
+                Node.lastClickedNode = undefined;
+                const node_changed = [];
+                for(let i=0; i < this.parent.tempChilds.length; i++){
+                    if(this.parent.tempChilds[i].status===Node.STATUS.ON){
+                        this.parent.tempChilds[i].status = Node.STATUS.EMPTY;
+                        node_changed.push(this.parent.tempChilds[i]);
+                    }
+                }
+                node_changed.push(this);
+                node_changed.push(this.parent);
+                for(let i = 0; i < node_changed.length; i++){
+                   node_changed[i].status_Changed();
+                }
+                this.round_end()
+            }
+        }
+        update_tile(){
+            this.div.textContent = this.value;
+            if(this.status === Node.STATUS.ON)//색칠
+                this.div.style.background = '#2ecc71';
+            else if(this.status === Node.STATUS.OFF)
+                this.div.style.background = '#f2f2f2';
+            else if(this.status === Node.STATUS.EMPTY)
+                this.div.style.background = '#7f8c8d';
+        }
+    }
+
+
+    const board = document.querySelector('#board');
+    const score = document.querySelector('#score');
+    const time = document.querySelector('#time');
+    const submit = document.querySelector('#submit');
+    const restart = document.querySelector('#restart');
+    const wires = document.querySelector('#wires');
+    const next = document.querySelector('#next');
+
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    marker.setAttribute('id', 'arrowhead'); // 이 ID로 화살촉을 참조합니다.
+    marker.setAttribute('viewBox', '0 0 10 7');
+    marker.setAttribute('markerWidth', '3'); // 마커의 너비
+    marker.setAttribute('markerHeight', '3'); // 마커의 높이
+    marker.setAttribute('refX', '10'); // 선의 끝점이 마커의 어느 x좌표에 맞닿을지
+    marker.setAttribute('refY', '3.5'); // 선의 끝점이 마커의 어느 y좌표에 맞닿을지
+    marker.setAttribute('orient', 'auto'); // 선의 기울기에 따라 화살촉이 자동으로 회전
+
+    // 3. 화살촉 모양 생성 (<polygon> 또는 <path> 사용)
+    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    polygon.setAttribute('points', '0 0, 10 3.5, 0 7'); // 삼각형 모양 정의, 배열과 비슷한(x,y)꼴
+
+    // 4. 생성한 요소들을 조립
+    marker.appendChild(polygon);
+    defs.appendChild(marker);
+    wires.appendChild(defs);
+
+
+    function initTiles(N=3){
+
+        const board_height = 300;
+        const board_width = 300;
+        const board_gap = 3;
+        const board_padding = 3;
+
+        const tile_height = (board_height - board_gap*(N-1) - 2*board_padding)/N;
+        const tile_width = (board_width - board_gap*(N-1) - 2*board_padding)/N;
+        const tile_fontsize = tile_width / 10;
+        const tile_borderRadius = tile_width / 10;
+
+        board.style.height = `${board_height}px`;
+        board.style.width = `${board_width}px`;
+        board.style.gap = `${board_gap}px`;
+        board.style.padding = `${board_padding}px`;
+        board.style.gridTemplateColumns = `repeat(${N},1fr)`;
+        board.style.gridTemplateRows = `repeat(${N},1fr)`;
+
+        wires.style.height = `${board_height}px`;
+        wires.style.width = `${board_width}px`;
+
+        Node.cnt_empty = N*N-1;
+        Node.N = N;
+
+        let tiles = [];
+        for(let i=0; i < N; i++){
+            tiles.push([]);
+            for(let j=0; j < N; j++){
+
+                let div = document.createElement('div');
+                let temp_node = new Node(j,i,tiles,div)
+
+                tiles[i].push(temp_node);        
+                div.style.height   = tile_height;
+                div.style.width    = tile_width;
+                div.style.fontSize = tile_fontsize;
+                div.style.borderRadius = tile_borderRadius;
+                div.className = 'tile';
+                div.textContent = temp_node.value;
+                div.addEventListener('click',(e)=>{
+                    temp_node.clicked(curVal);
+                })
+
+                board.appendChild(div);
+                temp_node.update_tile();
+            }
+        }
+        tiles[0][0].value = 1;
+        tiles[0][0].status = Node.STATUS.OFF;
+        tiles[0][0].update_tile();
+        return tiles;
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+
+    restart.addEventListener('click',(e)=>{
+        location.reload();
+    })
+    if (submit){
+        submit.addEventListener('click', async ()=>{
+            const data = {
+                userId:{{user.id}},
+                score : Node.max,
+                time  : time_len
+            };
+            try {
+                const response = await fetch('{% url "core:submit" %}',{                
+                    method:'POST',
+                    headers : {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    },
+                    body  : JSON.stringify(data),
+                });
+                if(response.ok){
+                    alert('submit success!')
+                    submit.disabled = true;
+                }
+                else{
+                    m = await response.text();
+                    alert(`submit failed:${m}`);
+                }
+            } catch (error) {
+                alert(`server not response...`)
+            }
+        });
+    }
+
+    function centerOfCell(node){
+        
+        const cr = node.div.getBoundingClientRect();
+        const br = board.getBoundingClientRect();
+
+        return { x: cr.left - br.left + cr.width/2,
+                 y: cr.top  - br.top  + cr.height/2 };
+    }
+    function drawline(node_from, node_to){
+        
+        const node_from_pos = centerOfCell(node_from);
+        const node_to_pos = centerOfCell(node_to);
+        const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+        
+        console.log(node_from_pos);
+        console.log(node_to_pos);
+
+        ln.setAttribute('x1', node_from_pos.x);
+        ln.setAttribute('y1', node_from_pos.y);
+        ln.setAttribute('x2', node_to_pos.x);
+        ln.setAttribute('y2', node_to_pos.y);
+        ln.setAttribute('marker-end', 'url(#arrowhead)');
+        wires.appendChild(ln);
+        node_from.child_lines.push(ln);
+    }
+    document.addEventListener('block:status_Changed',(e)=>{
+
+        const node = e.detail.node;
+
+        console.log('block_event=======================');
+        console.log(node);
+
+        
+        // 타일 업데이트&선연결
+        node.update_tile()
+        node.clear_line()//기존연결 제거 후 재연결
+        for(let i = 0; i < node.child.length; i++){
+            console.log('adding wires...');
+            drawline(node, node.child[i]);
+        }
+        console.log('block_event End=======================');
+    })
+    document.addEventListener('round_end',(e)=>{
+
+        console.log('round_end=======================');
+        curVal = Math.floor(Math.random() * Math.floor(Node.max/2)) + 1; //[1,Node.max]난수 생성
+        score.textContent = Node.max;
+        next.textContent = curVal;
+        if(Node.cnt_empty === 0){
+            if(submit)
+                submit.disabled = false;
+            clearInterval(timer);
+            alert('game over');
+        }
+        console.log('round_end End=======================');
+    })
+
+    let tiles, time_start = null, time_len = null, timer = null;
+    let curVal = 1;
+
+    tiles = initTiles();
+    time_start = Date.now();
+    timer = setInterval(()=>{
+        time_len = Math.floor((Date.now()-time_start)/1000);
+        time.textContent = time_len;
+    }, 1000)
+
+
+</script> 
+{% endblock %}

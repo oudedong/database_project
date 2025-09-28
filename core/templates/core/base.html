@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <title>{% block title %}base layout{% endblock %}</title>
+    {% block etc %}{% endblock %}
+  </head>
+  <body>
+    <nav class="navbar">
+        <ul class ="navbar-menu">
+            <li><a href="{% url 'core:main' %}">main</a></li>
+            <li><a href="{% url 'core:leaderboard' %}">leader board</a></li>
+            <li id="user_status">
+                {% if user.is_authenticated %}user:{{user.username}}<button id="logout">logout</button>
+                {% else %}user:guest <a href="{% url 'core:login' %}?next={{request.get_full_path|urlencode}}">login</a>
+                {% endif %}
+            </li>
+        </ul>
+    </nav>
+    {% block content %}{% endblock %}
+    <script>
+        function getCookie(name){
+            return document.cookie.split('; ').find(r => r.startsWith(name+'='))?.split('=')[1];
+        }
+        const csrftoken = getCookie('csrftoken');
+        logout_button = document.querySelector('#logout');
+        if(logout_button){
+            logout_button.addEventListener('click',async (e)=>{
+                e.preventDefault();
+                const r = await fetch('{% url "accounts:logout_api" %}',{
+                    method: "POST",
+                    headers: { "X-CSRFToken": csrftoken },   // ★ CSRF
+                    credentials: "same-origin",
+                })
+                if (r.ok){
+                    location.reload();
+                }
+                else{
+                    console.log(r.status)
+                    alert('failed to logout...')
+                }
+            });
+        }
+    </script>
+  </body>
+</html>
