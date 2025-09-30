@@ -36,11 +36,11 @@ def valify(actions, N, score, seed):
 
 
 
-    print(actions)
+    # print(actions)
     k = 1
     for action in actions:
 
-        print(f'{k}th....')
+        # print(f'{k}th....')
 
         k+=1
 
@@ -111,12 +111,12 @@ class Node:
             if self.value is None: return
             if self.value > self.context['max']:
                 self.context['max'] = self.value
-                print(f'max_changed:{self.context['max']}')
+                # print(f'max_changed:{self.context['max']}')
             #########################
-            print('check_parent...')
-            print(f'cur: {self.x},{self.y}')
+            # print('check_parent...')
+            # print(f'cur: {self.x},{self.y}')
             if (len(self.child) == 0) and (self.parent != None):
-                print(f'parent: {self.parent.x},{self.parent.y}')
+                # print(f'parent: {self.parent.x},{self.parent.y}')
                 self.parent.checkChilds()
         def permutation(self, nodes, acc, cur, target, nodes_rets:list):
 
@@ -184,8 +184,8 @@ class Node:
                 if len(self.child) >= 3:
                     return
                 self.tempChilds = []
-                print('#####################################')
-                print(f'from {self.x},{self.y}')
+                # print('#####################################')
+                # print(f'from {self.x},{self.y}')
                 for cur in self.context['adjacent']:
                     cur_x = self.x + cur[0]
                     cur_y = self.y + cur[1]
@@ -196,16 +196,16 @@ class Node:
                     if adjacent_node.status == self.context['STATUS']['EMPTY']:
                         adjacent_node.status = self.context['STATUS']['ON']
                         self.tempChilds.append(adjacent_node)
-                    print(f'adjacent: val, state : {adjacent_node.x},{adjacent_node.y}/{adjacent_node.value},{adjacent_node.status}')
+                    # print(f'adjacent: val, state : {adjacent_node.x},{adjacent_node.y}/{adjacent_node.value},{adjacent_node.status}')
                 self.context['lastClickedNode'] = self
                 for tc in self.tempChilds:
                    tc.status_Changed()
                 return
             if self.status == self.context['STATUS']['ON']:
-                print(f'On is clicked (x,y):{self.x},{self.y}')
+                # print(f'On is clicked (x,y):{self.x},{self.y}')
                 self.context['cnt_empty'] -= 1
                 self.value = val
-                print(f'new val:{self.value}')
+                # print(f'new val:{self.value}')
                 self.status = self.context['STATUS']['OFF']
                 self.context['lastClickedNode'].child.append(self)
                 self.parent = self.context['lastClickedNode']
@@ -279,7 +279,7 @@ def submit(request):
         return HttpResponse('succeed to save',status=200)
 
     except Exception as e:
-        print(e)
+        # print(e)
         return HttpResponse(f'{e}',status=400)
 
 @require_GET
