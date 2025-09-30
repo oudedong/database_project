@@ -1,27 +1,38 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="ko">
   <head>
     <meta charset="utf-8">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <title>{% block title %}base layout{% endblock %}</title>
     {% block etc %}{% endblock %}
   </head>
   <body>
-    <nav class="navbar">
-        <ul class ="navbar-menu">
-            <li><a href="{% url 'core:main' %}">main</a></li>
-            <li><a href="{% url 'core:leaderboard' %}">leader board</a></li>
-            <li id="user_status">
-                {% if user.is_authenticated %}user:{{user.username}}<button id="logout">logout</button>
-                {% else %}user:guest <a href="{% url 'core:login' %}?next={{request.get_full_path|urlencode}}">login</a>
-                {% endif %}
-            </li>
-        </ul>
+    <script src="{% static 'js/common.js' %}"></script>
+    <nav class="navbar navbar-expand bg-success bg-opacity-75">
+        <div class="container-fluid">
+            <div class="collapse navbar-collapse " id="navbarText">
+                <ul class ="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="{% url 'core:main' %}">main</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'core:leaderboard' %}">leader board</a></li>
+                </ul>
+                <span class="navbar-text">
+                    {% if user.is_authenticated %}user:{{user.username}}
+                    {% else %}user:guest 
+                    {% endif %}
+                </span>
+                <span class="navbar-text">
+                    {% if user.is_authenticated %}
+                    <button id="logout" class="btn btn-link">logout</button>
+                    {% else %}
+                    <a class="nav-link" href="{% url 'core:login' %}?next={{request.get_full_path|urlencode}}">login</a>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
     </nav>
     {% block content %}{% endblock %}
     <script>
-        function getCookie(name){
-            return document.cookie.split('; ').find(r => r.startsWith(name+'='))?.split('=')[1];
-        }
         const csrftoken = getCookie('csrftoken');
         logout_button = document.querySelector('#logout');
         if(logout_button){
@@ -42,5 +53,6 @@
             });
         }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
   </body>
 </html>

@@ -1,19 +1,37 @@
 {% extends 'core/base.html' %}
+{% load static %}
 {% block title %}leader board{% endblock %}
 {% block content %}
-<div>
-    <p>leader board</p>
-    <ol id="leaderboard">
-    </ol>
-    <button id="prev">prev</button>
-    <div id="curPage"></div>
-    <button id="next">next</button>
+<div class="d-flex flex-column p-2">
+    <p class="fs-2">leader board</p>
+    <div class="card">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#">total</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">weekly</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link">month</a>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <ul class="list-group" id="leaderboard"></ul>
+            <ul class="pagination justify-content-center mt-2">
+                <li class="page-item" id="button_prev"><a href='#' class="page-link">prev</a></li>
+                <li class="page-item active"><a id="curPage" href='#' class="page-link"></a></li>
+                <li class="page-item" id="button_next"><a href='#' class="page-link">next</a></li>
+            </ul>
+        </div>
+    </div>
 </div>
 <script>
-
 const learderBoard = document.querySelector('#leaderboard');
-const button_prev = document.querySelector('#prev');
-const button_next = document.querySelector('#next');
+const button_prev = document.querySelector('#button_prev');
+const button_next = document.querySelector('#button_next');
 const curPage = document.querySelector('#curPage');
 
 async function get_page(page){
@@ -27,9 +45,13 @@ function make_list(list){
     for(let i = 0; i < list.length-1; i++){
 
         li = document.createElement('li');
+
+        li.classList.add('list-group-item')
+
         div_name = document.createElement('div');
         div_score = document.createElement('div');
         div_time = document.createElement('div');
+
 
         div_name.setAttribute('class', 'name');
         div_score.setAttribute('class', 'score');
@@ -48,13 +70,13 @@ function make_list(list){
     const pageInfo = list[list.length-1];
 
     if(pageInfo.prev)
-        button_prev.disabled = false;
+        button_prev.classList.remove('disabled');
     else
-        button_prev.disabled = true;
+        button_prev.classList.add('disabled');
     if(pageInfo.next)
-        button_next.disabled = false;
+        button_next.classList.remove('disabled');
     else
-        button_next.disabled = true;
+        button_next.classList.add('disabled');
     curPage.textContent = pageInfo.curPage;
 }
 async function do_all(page){
@@ -63,9 +85,11 @@ async function do_all(page){
 }
 
 button_next.addEventListener('click',()=>{
-    do_all(curPage.textContent+1);
+    if(!button_next.classList.contains('disabled'))
+        do_all(curPage.textContent+1);
 })
 button_prev.addEventListener('click',()=>{
+    if(!button_prev.classList.contains('disabled'))
     do_all(curPage.textContent-1);
 })
 do_all(1);
