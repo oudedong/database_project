@@ -26,7 +26,7 @@
         pointer-events: none;
     }
     .wires line {
-        stroke:#333;
+        stroke:#c64141;
         stroke-width: 2;
         stroke-linecap: round;
         opacity: 0.5;
@@ -35,17 +35,45 @@
 {% endblock %}
 {% block title %}tree_puzzle{% endblock %}
 {% block content %}
-<div class="container">
-    <div id="hud">Score: <span id="score">0</span> • Time: <span id="time">0.0</span>s • next: <span id="next">1</span></div>
-    <div id="board" class="board">
-        <svg id="wires" class="wires" aria-hidden="true"></svg>
+<input id='gameId' value='{{gameId|default:""}}' hidden>
+<div class="d-flex flex-column align-items-center p-2 gap-3">
+    <div class="d-flex flex-column align-items-center p-2 gap-2 border border-success-subtle rounded-1">
+        <div id="hud">Score: <span id="score">0</span> • Time: <span id="time">0.0</span>s • next: <span id="next">1</span></div>
+        <div id="board" class="board">
+            <svg id="wires" class="wires" aria-hidden="true"></svg>
+        </div>
+        <div>
+            <button id="restart" class="btn btn-primary">Restart</button>
+            {% if user.is_authenticated %}
+            <button id="submit" class="btn btn-primary" disabled>Submit</button>
+            {% endif %}
+        </div>
     </div>
-    <div style="margin-top:12px;">
-        <button id="restart">Restart</button>
-        {% if user.is_authenticated %}
-        <button id="submit" disabled>Submit</button>
-        {% endif %}
+    <!-- 규칙 카드 -->
+    <div class="card border-success-subtle shadow-sm">
+        <div class="card-header bg-success-subtle text-success-emphasis fw-semibold">
+            규칙
+        </div>
+
+        <div class="card-body">
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex align-items-start">
+                    <span class="badge rounded-pill text-bg-success me-2">✓</span>
+                    각 노드는 최대 3개의 자식을 가질 수 있음.
+                </li>
+                <li class="list-group-item d-flex align-items-start">
+                    <span class="badge rounded-pill text-bg-success me-2">✓</span>
+                    자식 노드 또는 자식 노드들의 총합이 부모 노드와 같다면 부모 노드로 합쳐짐.
+                </li>
+            </ul>
+        </div>
+
+        <div class="card-footer bg-body-tertiary">
+            <span class="badge text-bg-warning me-2">주의</span>
+            <small class="text-body-secondary">점수는 <strong>로그인 시에만</strong> 제출 가능함</small>
+        </div>
     </div>
+
 </div>
 <script>
 
@@ -78,7 +106,7 @@
         reset(){
             if(this.status != Node.STATUS.EMPTY){//차있던 타일을 제거시
                 Node.cnt_empty += 1;
-                console.log('after disconnect, cnt_empty',Node.cnt_empty)
+                //console.log('after disconnect, cnt_empty',Node.cnt_empty)
             }
             this.parent = undefined;
             this.status = Node.STATUS.EMPTY;
@@ -91,8 +119,9 @@
             this.child_lines = []
         }
         status_Changed(){
-            if(this.value > Node.max){
+            if((this.value != undefined) && (this.value > Node.max)){
                 Node.max = this.value;
+                console.log('max_changed..:',Node.max)
             }
             document.dispatchEvent(new CustomEvent('block:status_Changed', {
                     detail:{node:this}
@@ -114,29 +143,55 @@
                 모든 자식이 자식이 없음 -> 합침
             */
             let sum = 0;
-            let hasChild = false;
-            const node_changed = [];
+            let node_changed = [];
+            let possibles = [];
+            const permutation = (nodes, acc, cur, target, nodes_rets)=>{
+
+                // console.log('bfs################');
+                // console.log('acc:', acc);
+                // console.log('cur:', cur);
+                // console.log('target:', target);
+                // console.log('bfs_end################');
+
+                if(acc === target)
+                    return true;
+                if(cur >= nodes.length)
+                    return false;
+                if(acc > target)
+                    return false;
+
+                let visit = false;
+
+                nodes_rets.push(nodes[cur]);
+                visit = permutation(nodes, acc+nodes[cur].value, cur+1, target, nodes_rets)
+                if(visit)return true;
+                nodes_rets.pop();
+                visit = permutation(nodes, acc, cur+1, target, nodes_rets)
+                return visit;
+            }
 
             for(let i=0; i < this.child.length; i++){
-                if(this.child[i].value === this.value && this.child[i].child.length === 0){
-                    this.value += this.child[i].value;
-                    this.child[i].reset();
-                    node_changed.push(...this.child.splice(i,1));
-                    break;
-                }
-                if(this.child[i].child.length > 0) hasChild = true;
-                sum += this.child[i].value;
+                if(this.child[i].child.length !== 0)
+                    continue;
+                possibles.push(this.child[i]);
             }
-            if(sum === this.value){
-                if(hasChild) return;
-                this.value += sum;
+
+            if(permutation(possibles, 0, 0, this.value, node_changed)){
+
+                // console.log('bfs success... node_changed:', node_changed);
+
+                this.value *= 2;
+
+                for(let i=0; i < node_changed.length; i++)
+                    node_changed[i].reset();
+                let temp = [];
                 for(let i=0; i < this.child.length; i++){
-                    this.child[i].reset();
+                    if(this.child[i].status===Node.STATUS.EMPTY)
+                        continue;
+                    temp.push(this.child[i]);
                 }
-                node_changed.push(...this.child);
-                this.child = [];
-            }
-            if(node_changed.length > 0){
+                this.child = temp;
+
                 node_changed.push(this);
                 for(let i = 0; i < node_changed.length; i++){
                    node_changed[i].status_Changed();
@@ -159,10 +214,11 @@
         }
         clicked(val){
             if(this.status === Node.STATUS.EMPTY){
-                console.log('invalid_node...');
+                // console.log('invalid_node...');
                 return;
             }
             if(this.value === val){
+                actions.push({x_from:-1, y_from:-1,x_dest:this.x, y_dest:this.y, val:curVal});
                 this.unset_on_titles();
                 this.value += val;
                 this.status_Changed();
@@ -172,7 +228,7 @@
             if(this.status === Node.STATUS.OFF){
                 this.unset_on_titles();
                 if(this.child.length >= 3){
-                    console.log('this node is full....')
+                    // console.log('this node is full....')
                     return;
                 }
                 this.tempChilds = []; //배열 초기화
@@ -195,8 +251,9 @@
                 return;
             }
             if(this.status === Node.STATUS.ON){
+                actions.push({x_from:Node.lastClickedNode.x, y_from:Node.lastClickedNode.y,x_dest:this.x, y_dest:this.y, val:curVal});
                 Node.cnt_empty -= 1;//노드한칸 차지...
-                console.log('after connect, cnt_empty',Node.cnt_empty)
+                // console.log('after connect, cnt_empty',Node.cnt_empty)
                 this.value = val;
                 this.status = Node.STATUS.OFF;
                 Node.lastClickedNode.child.push(this);
@@ -227,7 +284,21 @@
                 this.div.style.background = '#7f8c8d';
         }
     }
+    class Rng {
+        constructor(seed){
+            this.a = (seed >>> 0);                // 내부 상태
+        }
+        random(){
+            this.a = (this.a + 0x6D2B79F5) >>> 0; // ← 오직 이 한 줄로 상태 갱신
+            let t = this.a;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        }
+    }
 
+    const gameId = Number(document.querySelector('#gameId').value);
+    const seed = Math.floor(Math.random()*1000000);
 
     const board = document.querySelector('#board');
     const score = document.querySelector('#score');
@@ -241,8 +312,8 @@
     const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
     marker.setAttribute('id', 'arrowhead'); // 이 ID로 화살촉을 참조합니다.
     marker.setAttribute('viewBox', '0 0 10 7');
-    marker.setAttribute('markerWidth', '3'); // 마커의 너비
-    marker.setAttribute('markerHeight', '3'); // 마커의 높이
+    marker.setAttribute('markerWidth', '5'); // 마커의 너비
+    marker.setAttribute('markerHeight', '5'); // 마커의 높이
     marker.setAttribute('refX', '10'); // 선의 끝점이 마커의 어느 x좌표에 맞닿을지
     marker.setAttribute('refY', '3.5'); // 선의 끝점이 마커의 어느 y좌표에 맞닿을지
     marker.setAttribute('orient', 'auto'); // 선의 기울기에 따라 화살촉이 자동으로 회전
@@ -250,6 +321,7 @@
     // 3. 화살촉 모양 생성 (<polygon> 또는 <path> 사용)
     const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
     polygon.setAttribute('points', '0 0, 10 3.5, 0 7'); // 삼각형 모양 정의, 배열과 비슷한(x,y)꼴
+    polygon.setAttribute('fill', 'context-stroke');
 
     // 4. 생성한 요소들을 조립
     marker.appendChild(polygon);
@@ -334,8 +406,11 @@
         submit.addEventListener('click', async ()=>{
             const data = {
                 userId:{{user.id}},
+                gameId:gameId,
                 score : Node.max,
-                time  : time_len
+                time  : time_len,
+                actions : actions,
+                seed : seed
             };
             try {
                 const response = await fetch('{% url "core:submit" %}',{                
@@ -374,8 +449,18 @@
         const node_to_pos = centerOfCell(node_to);
         const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
         
-        console.log(node_from_pos);
-        console.log(node_to_pos);
+        //살짝 중앙에서 밀려나게
+        const x_diff = node_to_pos.x - node_from_pos.x;
+        const y_diff = node_to_pos.y - node_from_pos.y;
+        const ratio = 0.2;
+
+        node_from_pos.x += x_diff*ratio;
+        node_from_pos.y += y_diff*ratio;
+        node_to_pos.x -= x_diff*ratio;
+        node_to_pos.y -= y_diff*ratio;
+
+        // console.log(node_from_pos);
+        // console.log(node_to_pos);
 
         ln.setAttribute('x1', node_from_pos.x);
         ln.setAttribute('y1', node_from_pos.y);
@@ -389,23 +474,30 @@
 
         const node = e.detail.node;
 
-        console.log('block_event=======================');
-        console.log(node);
+        // console.log('block_event=======================');
+        // console.log(node);
 
         
         // 타일 업데이트&선연결
         node.update_tile()
         node.clear_line()//기존연결 제거 후 재연결
         for(let i = 0; i < node.child.length; i++){
-            console.log('adding wires...');
+            // console.log('adding wires...');
             drawline(node, node.child[i]);
         }
-        console.log('block_event End=======================');
+        // console.log('block_event End=======================');
     })
     document.addEventListener('round_end',(e)=>{
 
         console.log('round_end=======================');
-        curVal = Math.floor(Math.random() * Math.floor(Node.max/2)) + 1; //[1,Node.max]난수 생성
+        
+        rand = rng.random();
+        // console.log("rand(0~1):",rand);
+        // console.log("Node.max:",Node.max);
+        // console.log("curval:",curVal); 
+        curVal = Math.floor(rand*Math.floor(Node.max/2))+1
+        // console.log("nextVal:",curVal); 
+
         score.textContent = Node.max;
         next.textContent = curVal;
         if(Node.cnt_empty === 0){
@@ -417,10 +509,12 @@
         console.log('round_end End=======================');
     })
 
+    const rng = new Rng(seed);
     let tiles, time_start = null, time_len = null, timer = null;
-    let curVal = 1;
+    let curVal = Math.floor(rng.random()*Math.floor(Node.max/2))+1;
+    const actions = [];
 
-    tiles = initTiles();
+    tiles = initTiles(5);
     time_start = Date.now();
     timer = setInterval(()=>{
         time_len = Math.floor((Date.now()-time_start)/1000);

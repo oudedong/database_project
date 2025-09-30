@@ -1,49 +1,64 @@
-<div class="account-block" id="accountBlock-{{ block_id|default:'1' }}">
-  <button type="button" class="modeButton">회원가입</button>
-
-  <form class="loginForm" method="post">
-    {% csrf_token %}
-    <label>아이디</label>
-    <input name="username" autocomplete="username" required>
-    <label>비밀번호</label>
-    <input name="password" type="password" autocomplete="current-password" required>
-    <label><input type="checkbox" name="remember" value="1"> 로그인 유지</label>
-    <button type="submit">로그인</button>
-  </form>
-
-  <form class="registerForm" method="post" hidden>
-    {% csrf_token %}
-    <label>아이디</label>
-    <input name="username" autocomplete="username" required>
-    <label>비밀번호</label>
-    <input name="password1" type="password" autocomplete="new-password" required>
-    <label>비밀번호 확인</label>
-    <input name="password2" type="password" autocomplete="new-password" required>
-    <button type="submit">회원가입</button>
-  </form>
-
-  <div class="error" style="color:red"></div>
+<div class="d-flex p-2 justify-content-center" id="accountBlock-{{ block_id|default:'1' }}">
+  <div class="d-flex flex-column gap-2 border border-success-subtle rounded-2 p-2 bg-success-subtle">
+    <button type="button" id="modeButton" class="btn btn-primary"></button>
+  
+    <form class="d-flex flex-column gap-2" id="loginForm" method="post">
+      {% csrf_token %}
+      <label>아이디</label>
+      <input class="form-control border-success" name="username" autocomplete="username" required>
+      <label>비밀번호</label>
+      <input class="form-control border-success" name="password" type="password" autocomplete="current-password" required>
+      <button type="submit" class="btn btn-primary">로그인</button>
+    </form>
+  
+    <form class="d-flex flex-column gap-2" id="registerForm" method="post" hidden>
+      {% csrf_token %}
+      <label>아이디</label>
+      <input class="form-control border-success" name="username" autocomplete="username" required>
+      <label>비밀번호</label>
+      <input class="form-control border-success" name="password1" type="password" autocomplete="new-password" required>
+      <label>비밀번호 확인</label>
+      <input class="form-control border-success" name="password2" type="password" autocomplete="new-password" required>
+      <button type="submit" class="btn btn-primary">회원가입</button>
+    </form>
+  
+    <div id="error"></div>
+  </div>
 </div>
 
 <script>
 (() => {
   // 루트 스코프: 이 include 블록 안에서만 요소를 찾음
   const root = document.getElementById('accountBlock-{{ block_id|default:"1" }}');
-  const modeButton   = root.querySelector('.modeButton');
-  const loginForm    = root.querySelector('.loginForm');
-  const registerForm = root.querySelector('.registerForm');
-  const errorBox     = root.querySelector('.error');
+  const modeButton   = root.querySelector('#modeButton');
+  const loginForm    = root.querySelector('#loginForm');
+  const registerForm = root.querySelector('#registerForm');
+  const errorBox     = root.querySelector('#error');
+  const pop_error    = (message, type)=>{
+    const wrapper = document.createElement('div')
+    wrapper.innerHTML = [
+      `<div class="alert alert-${type} alert-dismissible" role="alert">`,
+      `   <div>${message}</div>`,
+      '   <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>',
+      '</div>'
+    ].join('')
+
+    errorBox.append(wrapper)
+  }
 
   // 초기 상태: 로그인 폼 보이기
   loginForm.hidden = false;
   registerForm.hidden = true;
-  modeButton.textContent = '회원가입';
+  registerForm.classList.add('visually-hidden')
+  modeButton.textContent = '회원가입으로';
 
   modeButton.addEventListener('click', () => {
     const showingLogin = !loginForm.hidden;
     loginForm.hidden    = showingLogin;
     registerForm.hidden = !showingLogin;
-    modeButton.textContent = showingLogin ? '로그인' : '회원가입';
+    modeButton.textContent = showingLogin ? '로그인으로' : '회원가입으로';
+    loginForm.classList.toggle('visually-hidden');
+    registerForm.classList.toggle('visually-hidden')
   });
 
   loginForm.addEventListener('submit', async (e) => {
@@ -61,7 +76,7 @@
         detail: data.user || null  // API에서 사용자 정보도 주면 전달
       }));
     } else {
-      errorBox.textContent = Object.values(data.errors || {}).flat().join(" / ");
+      pop_error(Object.values(data.errors || {}).flat().join(" / "), 'warning');
     }
   });
 
@@ -80,7 +95,7 @@
         detail: data.user || null  // API에서 사용자 정보도 주면 전달
       }));
     } else {
-      errorBox.textContent = Object.values(data.errors || {}).flat().join(" / ");
+      pop_error(Object.values(data.errors || {}).flat().join(" / "), 'warning');
     }
   });
 })();
