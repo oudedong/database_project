@@ -6,7 +6,10 @@ from django.contrib.auth import get_user_model
 from django.views.decorators.http import require_POST, require_GET
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import login, logout
-User = get_user_model()
+
+@require_GET
+def mylogin(request):
+    return render(request, 'accounts/login_register.html')
 
 @require_POST
 def login_api(request):
@@ -15,10 +18,14 @@ def login_api(request):
         login(request, form.get_user())
         return JsonResponse({'ok':True})
     return JsonResponse({'ok':False, 'errors':form.errors}, status=400)
+
 @require_POST
 def logout_api(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok':False, 'errors':'already logout'}, status=400)
     logout(request)
-    return HttpResponse(status=200)
+    return JsonResponse({'ok':False})
+
 @require_POST
 def register_api(request):
     form = UserCreationForm(request.POST)
@@ -27,6 +34,7 @@ def register_api(request):
         login(request, user)
         return JsonResponse({'ok':True})
     return JsonResponse({'ok':False, 'errors':form.errors}, status=400)
+
 @require_GET
 def check_status(request):
     to_response = {'ok':False, 'user':None}

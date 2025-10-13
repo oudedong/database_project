@@ -1,6 +1,10 @@
 {% extends 'core/base.html' %}
 {% load static %}
 {% block title %}leader board{% endblock %}
+{% block etc %} 
+<script src='{% static "core/js/leaderboard.js" %}' defer></script> 
+<link href='{% static "core/css/leaderboard.css" %}' rel="stylesheet">
+{% endblock %}
 {% block content %}
 <div class="d-flex flex-column p-2">
     <p class="fs-2">leader board</p>
@@ -28,70 +32,4 @@
         </div>
     </div>
 </div>
-<script>
-const learderBoard = document.querySelector('#leaderboard');
-const button_prev = document.querySelector('#button_prev');
-const button_next = document.querySelector('#button_next');
-const curPage = document.querySelector('#curPage');
-
-async function get_page(page){
-    const response = await fetch("{% url 'core:leaderboard_api' %}"+`?page=${page}`,{
-        method:'GET',
-    });
-    return await response.json();
-}
-function make_list(list){
-
-    for(let i = 0; i < list.length-1; i++){
-
-        li = document.createElement('li');
-
-        li.classList.add('list-group-item')
-
-        div_name = document.createElement('div');
-        div_score = document.createElement('div');
-        div_time = document.createElement('div');
-
-
-        div_name.setAttribute('class', 'name');
-        div_score.setAttribute('class', 'score');
-        div_time.setAttribute('class', 'time');
-
-        div_name.textContent = `username: ${list[i].username}`;
-        div_score.textContent = `score: ${list[i].score}`;
-        div_time.textContent = `time: ${list[i].time}`;
-
-        li.appendChild(div_name);
-        li.appendChild(div_score);
-        li.appendChild(div_time);
-        learderBoard.appendChild(li);
-    }
-
-    const pageInfo = list[list.length-1];
-
-    if(pageInfo.prev)
-        button_prev.classList.remove('disabled');
-    else
-        button_prev.classList.add('disabled');
-    if(pageInfo.next)
-        button_next.classList.remove('disabled');
-    else
-        button_next.classList.add('disabled');
-    curPage.textContent = pageInfo.curPage;
-}
-async function do_all(page){
-    json_list = await get_page(page);
-    make_list(json_list);
-}
-
-button_next.addEventListener('click',()=>{
-    if(!button_next.classList.contains('disabled'))
-        do_all(curPage.textContent+1);
-})
-button_prev.addEventListener('click',()=>{
-    if(!button_prev.classList.contains('disabled'))
-    do_all(curPage.textContent-1);
-})
-do_all(1);
-</script>
 {% endblock %}

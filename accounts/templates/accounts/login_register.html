@@ -1,0 +1,47 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <script defer src="{% static 'accounts/js/login_register.js' %}"></script>
+    <title>login,register</title>
+  </head>
+  <body>
+    <div id="login_api_url" hidden>{% url 'accounts:login_api' %}</div>
+    <div id="register_api_url" hidden>{% url 'accounts:register_api' %}</div>
+    <div class="d-flex p-2 justify-content-center" id="accountBlock">
+      <div class="d-flex flex-column gap-2 border border-success-subtle rounded-2 p-2 bg-success-subtle">
+        <button type="button" id="modeButton" class="btn btn-primary"></button>
+  
+          <form class="d-flex flex-column gap-2" id="loginForm" method="post">
+            {% csrf_token %}
+            <label>아이디</label>
+            <input class="form-control border-success" name="username" autocomplete="username" required>
+            <label>비밀번호</label>
+            <input class="form-control border-success" name="password" type="password" autocomplete="current-password" required>
+            <button type="submit" class="btn btn-primary">로그인</button>
+          </form>
+  
+          <form class="d-flex flex-column gap-2" id="registerForm" method="post" hidden>
+            {% csrf_token %}
+            <label>아이디</label>
+            <input class="form-control border-success" name="username" autocomplete="username" required>
+            <label>비밀번호</label>
+            <input class="form-control border-success" name="password1" type="password" autocomplete="new-password" required>
+            <label>비밀번호 확인</label>
+            <input class="form-control border-success" name="password2" type="password" autocomplete="new-password" required>
+            <button type="submit" class="btn btn-primary">회원가입</button>
+          </form>
+  
+          <div id="error"></div>
+      </div>
+    </div>
+    <script>
+        document.addEventListener('auth:login',(e)=>{
+          location.href = '{{next|escapejs}}';
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+  </body>
+</html>

@@ -1,39 +1,11 @@
-<div class="d-flex p-2 justify-content-center" id="accountBlock-{{ block_id|default:'1' }}">
-  <div class="d-flex flex-column gap-2 border border-success-subtle rounded-2 p-2 bg-success-subtle">
-    <button type="button" id="modeButton" class="btn btn-primary"></button>
-  
-    <form class="d-flex flex-column gap-2" id="loginForm" method="post">
-      {% csrf_token %}
-      <label>아이디</label>
-      <input class="form-control border-success" name="username" autocomplete="username" required>
-      <label>비밀번호</label>
-      <input class="form-control border-success" name="password" type="password" autocomplete="current-password" required>
-      <button type="submit" class="btn btn-primary">로그인</button>
-    </form>
-  
-    <form class="d-flex flex-column gap-2" id="registerForm" method="post" hidden>
-      {% csrf_token %}
-      <label>아이디</label>
-      <input class="form-control border-success" name="username" autocomplete="username" required>
-      <label>비밀번호</label>
-      <input class="form-control border-success" name="password1" type="password" autocomplete="new-password" required>
-      <label>비밀번호 확인</label>
-      <input class="form-control border-success" name="password2" type="password" autocomplete="new-password" required>
-      <button type="submit" class="btn btn-primary">회원가입</button>
-    </form>
-  
-    <div id="error"></div>
-  </div>
-</div>
 
-<script>
-(() => {
-  // 루트 스코프: 이 include 블록 안에서만 요소를 찾음
-  const root = document.getElementById('accountBlock-{{ block_id|default:"1" }}');
-  const modeButton   = root.querySelector('#modeButton');
-  const loginForm    = root.querySelector('#loginForm');
-  const registerForm = root.querySelector('#registerForm');
-  const errorBox     = root.querySelector('#error');
+  const modeButton   = document.querySelector('#modeButton');
+  const loginForm    = document.querySelector('#loginForm');
+  const registerForm = document.querySelector('#registerForm');
+  const errorBox     = document.querySelector('#error');
+  const login_api_url = document.querySelector('#login_api_url').textContent;
+  const register_api_url = document.querySelector('#register_api_url').textContent;
+  
   const pop_error    = (message, type)=>{
     const wrapper = document.createElement('div')
     wrapper.innerHTML = [
@@ -45,6 +17,7 @@
 
     errorBox.append(wrapper)
   }
+  const next_page = new URL(window.location.href).searchParams.get('next') ?? '';
 
   // 초기 상태: 로그인 폼 보이기
   loginForm.hidden = false;
@@ -65,7 +38,7 @@
     e.preventDefault();
     errorBox.textContent = '';
     const fd = new FormData(loginForm);
-    const r  = await fetch("{% url 'accounts:login_api' %}", {
+    const r  = await fetch(login_api_url, {
       method: "POST",
       body: fd,                         // csrfmiddlewaretoken 포함
       credentials: "same-origin",
@@ -84,7 +57,7 @@
     e.preventDefault();
     errorBox.textContent = '';
     const fd = new FormData(registerForm);
-    const r  = await fetch("{% url 'accounts:register_api' %}", {
+    const r  = await fetch(register_api_url, {
       method: "POST",
       body: fd,                         // csrfmiddlewaretoken 포함
       credentials: "same-origin",
@@ -98,5 +71,7 @@
       pop_error(Object.values(data.errors || {}).flat().join(" / "), 'warning');
     }
   });
-})();
-</script>
+
+  document.addEventListener('auth:login',(e)=>{
+    location.href = next_page;
+  });
