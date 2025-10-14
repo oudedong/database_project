@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 from . import urls
 from .valify import valify
 import json
+import datetime
 
 @require_GET
 def main(request):
@@ -57,12 +58,29 @@ def leaderboard(request):
 @require_GET
 def leaderboard_api(request):
 
-    page_size = 10
 
-    all_result = Result.objects.all().order_by('-score')
-    paginator = Paginator(all_result, page_size)
     page = request.GET.get('page')
+    date_range:str = request.GET.get('range')
+    page_size = request.GET.get('page_size')
+    date_st = None
+    date_end = None
+
+    if page_size is None: page_size = 10
     if page is None: page = 1
+    page = int(page)
+    if not date_range is None:
+        date_st, date_end = date_range.split('~')
+        date_st = datetime.datetime.strptime(date_st, '%Y%m%d')
+        date_end = datetime.datetime.strptime(date_end, '%Y%m%d')
+    
+    all_result = None
+    if date_range is None:
+        all_result = Result.objects.all().order_by('-score')
+    else:
+        all_result = Result.objects.filter(date__range=(date_end, date_st)).order_by('-score')#?
+    paginator = Paginator(all_result, page_size)    
+
+
     page_obj = paginator.page(page)
     to_response = {'scores':[]}
 
@@ -74,7 +92,7 @@ def leaderboard_api(request):
             'date'    : obj.date
         }
         to_response['scores'].append(temp)
-    to_response['page_info'] = {'prev':page_obj.has_previous(), 'next':page_obj.has_previous(), 'curPage':page}
+    to_response['page_info'] = {'prev':page_obj.has_previous(), 'next':page_obj.has_previous(), 'curPage':page, 'num_pages':paginator.num_pages}
     return JsonResponse(to_response, safe=False)
 
 
