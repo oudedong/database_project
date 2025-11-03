@@ -216,7 +216,7 @@ class Node{
         }
     }
 
-    let user = await fetch('/accounts/check_api/'); 
+    let user = await fetch('/accounts/api/check/'); 
     user = await user.json(); 
     user = user.user;
     const userId = user==null ? null : user.id;
@@ -319,7 +319,7 @@ class Node{
                 seed : seed
             };
             try {
-                const response = await fetch('/submit',{                
+                const response = await fetch('/main/api/submit',{                
                     method:'POST',
                     headers : {
                         'Content-Type': 'application/json',

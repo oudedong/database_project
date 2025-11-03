@@ -5,7 +5,7 @@ const logout_button = document.querySelector('#logout');
 if(logout_button){
     logout_button.addEventListener('click',async (e)=>{
         e.preventDefault();
-        const r = await fetch('/accounts/logout_api/',{
+        const r = await fetch('/accounts/api/logout/',{
             method: "POST",
             headers: { "X-CSRFToken": csrftoken },   // ★ CSRF
             credentials: "same-origin",

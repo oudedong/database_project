@@ -1,9 +1,6 @@
 from django.urls import path, include
-from . import views
 app_name = 'core'
 urlpatterns = [
-    path("", views.main, name='main'),
-    path("submit", views.submit, name='submit'),
-    path("leaderboard/", views.leaderboard, name='leaderboard'),
-    path("leaderboard_api", views.leaderboard_api, name='leaderboard_api'),
+    path("", include('core.routes.web',namespace='web')),
+    path("api/", include('core.routes.api',namespace='api')),
 ]

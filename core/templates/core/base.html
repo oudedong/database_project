@@ -14,8 +14,8 @@
         <div class="container-fluid">
             <div class="collapse navbar-collapse " id="navbarText">
                 <ul class ="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link" href="{% url 'core:main' %}">main</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'core:leaderboard' %}">leader board</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'core:web:main' %}">main</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'core:web:leaderboard' %}">leader board</a></li>
                 </ul>
                 <span class="navbar-text">
                     {% if user.is_authenticated %}user:{{user.username}}
@@ -26,7 +26,7 @@
                     {% if user.is_authenticated %}
                     <button id="logout" class="btn btn-link">logout</button>
                     {% else %}
-                    <a class="nav-link" href="{% url 'accounts:login' %}?next={{request.get_full_path|urlencode}}">login</a>
+                    <a class="nav-link" href="{% url 'accounts:web:login' %}?next={{request.get_full_path|urlencode}}">login</a>
                     {% endif %}
                 </span>
             </div>

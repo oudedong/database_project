@@ -8,8 +8,8 @@
     <title>login,register</title>
   </head>
   <body>
-    <div id="login_api_url" hidden>{% url 'accounts:login_api' %}</div>
-    <div id="register_api_url" hidden>{% url 'accounts:register_api' %}</div>
+    <div id="login_api_url" hidden>{% url 'accounts:api:login' %}</div>
+    <div id="register_api_url" hidden>{% url 'accounts:api:register' %}</div>
     <div class="d-flex p-2 justify-content-center" id="accountBlock">
       <div class="d-flex flex-column gap-2 border border-success-subtle rounded-2 p-2 bg-success-subtle">
         <button type="button" id="modeButton" class="btn btn-primary"></button>

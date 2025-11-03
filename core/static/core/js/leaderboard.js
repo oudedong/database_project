@@ -161,7 +161,7 @@ class Page_tabs{
 
 async function get_page(page, range, page_size=10){
 
-    let url = "/leaderboard_api"+`?page=${page}&page_size=${page_size}`
+    let url = "/main/api/leaderboard"+`?page=${page}&page_size=${page_size}`
     if(range != null) url += `&range=${range}`;
     const response = await fetch(url);
     

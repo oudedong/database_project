@@ -4,7 +4,6 @@ from django.views.decorators.http import require_GET, require_POST
 from .models import Result
 from django.core.paginator import Paginator
 from django.contrib.auth.models import User
-from . import urls
 from .valify import valify
 import json
 import datetime
