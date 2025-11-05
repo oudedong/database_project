@@ -2,12 +2,14 @@ import {getCookie} from '../../../../static/js/common.js';
 
 const csrftoken = getCookie('csrftoken');
 const logout_button = document.querySelector('#logout');
+const logout_api_url = document.querySelector('#logout_url');
+
 if(logout_button){
     logout_button.addEventListener('click',async (e)=>{
         e.preventDefault();
-        const r = await fetch('/accounts/api/logout/',{
+        const r = await fetch(logout_api_url,{
             method: "POST",
-            headers: { "X-CSRFToken": csrftoken },   // ★ CSRF
+            headers: { "X-CSRFToken": csrftoken },   //CSRF
             credentials: "same-origin",
         })
         if (r.ok){

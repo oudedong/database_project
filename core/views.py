@@ -19,7 +19,7 @@ def submit(request):
         data = json.loads(request.body)
         requires = ['userId','score', 'time', 'actions','seed']
 
-        #데이터 다 있나 확인..
+        #데이터 다 있나 확인
         for key in requires:
             temp = data.get(key)
             if temp is None:
@@ -58,31 +58,31 @@ def leaderboard(request):
 def leaderboard_api(request):
 
 
+    #페이지 크기, 번호, 날짜범위 설정
     page = request.GET.get('page')
     date_range:str = request.GET.get('range')
     page_size = request.GET.get('page_size')
     date_st = None
     date_end = None
-
     if page_size is None: page_size = 10
-    if page is None: page = 1
-    page = int(page)
+    if page is None: page = 1 
+    else: page = int(page)
     if not date_range is None:
         date_st, date_end = date_range.split('~')
         date_st = datetime.datetime.strptime(date_st, '%Y%m%d')
         date_end = datetime.datetime.strptime(date_end, '%Y%m%d')
-    
+
+    #db로 부터 범위내 결과들을 불러옴
     all_result = None
     if date_range is None:
         all_result = Result.objects.all().order_by('-score')
     else:
-        all_result = Result.objects.filter(date__range=(date_end, date_st)).order_by('-score')#?
+        all_result = Result.objects.filter(date__range=(date_st, date_end)).order_by('-score')#?
     paginator = Paginator(all_result, page_size)    
 
-
+    #형식에 맞게 반환함
     page_obj = paginator.page(page)
     to_response = {'scores':[]}
-
     for obj in page_obj:
         temp = {
             'username': obj.userId.username,

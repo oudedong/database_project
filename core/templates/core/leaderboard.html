@@ -2,10 +2,11 @@
 {% load static %}
 {% block title %}leader board{% endblock %}
 {% block etc %} 
-<script src='{% static "core/js/leaderboard.js" %}' defer></script> 
+<script type="module" src='{% static "core/js/leaderboard.js" %}' defer></script> 
 <link href='{% static "core/css/leaderboard.css" %}' rel="stylesheet">
 {% endblock %}
 {% block content %}
+<p hidden id="leaderboard_api_url">{% url 'core:api:leaderboard' %}</p>
 <div class="d-flex flex-column p-2">
     <p class="fs-2">leader board</p>
     <div class="card">
@@ -25,13 +26,10 @@
         <div class="card-body">
             <ul class="list-group" id="leaderboard"></ul>
             <ul class="pagination justify-content-center mt-2">
-                <li class="page-item"><a href='#' class="page-link">prev</a></li>
-                <li class="page-item"><a href='#' class="page-link"></a></li>
-                <li class="page-item"><a href='#' class="page-link"></a></li>
-                <li class="page-item"><a href='#' class="page-link"></a></li>
-                <li class="page-item"><a href='#' class="page-link"></a></li>
-                <li class="page-item"><a href='#' class="page-link"></a></li>
-                <li class="page-item"><a href='#' class="page-link">next</a></li>
+                <li class="page-item"><a href='#' class="page-link" id="prev">prev</a></li>
+                <div id="pages" class="d-flex">
+                </div>
+                <li class="page-item"><a href='#' class="page-link" id="next">next</a></li>
             </ul>
         </div>
     </div>

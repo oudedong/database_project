@@ -1,5 +1,251 @@
 import { getCookie } from "../../../../static/js/common.js";
 
+class Node_v2{
+
+    static STATUS= {
+        EMPTY: 0, //비활성화+값없음.
+        OFF  : 1, //비활성화+값있음
+        ON   : 2, //활성화+값없음
+    };
+
+   constructor(x, y, board, div, value=undefined, parent=undefined){
+        this.value  = value;
+        this.childs  = [];
+        this.parent = parent;
+        this.div = div
+        this.board = board;
+        if(value){
+            this.status = Node_v2.STATUS.OFF;
+        } else{
+            this.status = Node_v2.STATUS.EMPTY;
+        }
+    }
+    append_child(node){
+        this.childs.push(node);
+        node.parent = this;
+    }
+    merge_with_childs(){
+        
+        let possibles = [];
+        for(let i = 0; i < this.childs.length; i++){
+            if(this.childs[i].childs.length <= 0){
+                possibles.push(this.childs[i]);
+            }
+        }
+
+        const permutation = (possibles, accumulate, cur_index, target_sum, found_nodes)=>{
+            if(accumulate === target_sum)
+                return true;
+            if(cur_index >= possibles.length)
+                return false;
+            if(acc > target)
+                return false;
+
+            let result = false;
+
+            found_nodes.push(possibles[cur_index]);
+            result = permutation(possibles, accumulate+possibles[cur].value, cur_index+1, target_sum, found_nodes)
+            if(result)return true;
+            found_nodes.pop();
+            result = permutation(possibles, accumulate, cur_index+1, target_sum, found_nodes)
+            return result;
+        }
+
+        let found_nodes = [];
+        let result = permutation(possibles, 0, 0, this.value, found_nodes);
+        if(!result) return; //실패
+        for(let i = 0; i < found_nodes.length; i++){
+            found_nodes[i].reset_node();
+            
+        }
+        
+        let new_childs = [];
+        for(let i = 0; i < this.childs.length; i++){
+            if(this.childs[i].status != Node_v2.STATUS.EMPTY){
+                new_childs.push(this.childs[i]);
+            }
+        }
+        this.childs = new_childs;
+        
+        this.parent.merge_with_childs();
+    }
+    reset_node(){
+        this.value = undefined;
+        this.status = Node_v2.STATUS.EMPTY;
+        this.div.textContent = this.value;
+        this.div.style.background = '#7f8c8d';
+    }
+    on_node(){
+        if(this.status!=Node_v2.STATUS.EMPTY){
+            throw Error('tried to turn on none empty node...');
+        }
+        this.status = Node_v2.STATUS.ON;
+        this.div.style.background = '#2ecc71';
+    }
+    off_node(){
+        if(this.status!=Node_v2.STATUS.ON){
+            throw Error('tried to turn off none on node...');
+        }
+        if(this.value != none){
+            this.status = Node_v2.STATUS.OFF;
+            this.div.style.background = '#f2f2f2';
+        }
+        else{
+            this.reset_node();
+        }
+    }
+    activate_node(value){
+        if(this.status!=Node_v2.STATUS.ON){
+            throw Error('tried to activate none on node...');
+        }
+        this.status = Node_v2.STATUS.OFF;
+        this.value = value
+        this.div.textContent = value;
+        this.div.style.background = '#f2f2f2';
+    }
+    add_value(value){
+        if(this.status == Node_v2.STATUS.EMPTY || this.value != value){
+            throw Error('no add');
+        }
+        this.value += value;
+    }
+}
+class Board{
+
+    static adjacent = [[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]];
+
+    constructor(element_board, element_wires, rng_generator, board_size){
+
+        this.rng_generator = rng_generator;
+        this.cur_value = 1;
+        this.element_wires = element_wires;
+        this.element_board = element_board;
+        this.max_value = 1;
+        this.board_size = board_size;
+        this.cnt_empty = board_size*board_size-1;
+        this.temp_context = {
+            last_clicked_x: undefined,
+            last_clicked_y: undefined,
+            last_clicked_node: undefined,
+            temp_nodes  : []
+        };
+        this.nodes = [];
+        this.actions = [];
+
+        const board_height = document.documentElement.clientHeight/2;
+        const board_width = board_height;
+        const board_gap = board_height/100;
+        const board_padding = board_height/100;
+        this.element_board.style.height = `${board_height}px`;
+        this.element_board.style.width = `${board_width}px`;
+        this.element_board.style.gap = `${board_gap}px`;
+        this.element_board.style.padding = `${board_padding}px`;
+        this.element_board.style.gridTemplateColumns = `repeat(${N},1fr)`;
+        this.element_board.style.gridTemplateRows = `repeat(${N},1fr)`;
+
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+        marker.setAttribute('id', 'arrowhead'); // 이 ID로 화살촉을 참조합니다.
+        marker.setAttribute('viewBox', '0 0 10 7');
+        marker.setAttribute('markerWidth', '5'); // 마커의 너비
+        marker.setAttribute('markerHeight', '5'); // 마커의 높이
+        marker.setAttribute('refX', '10'); // 선의 끝점이 마커의 어느 x좌표에 맞닿을지
+        marker.setAttribute('refY', '3.5'); // 선의 끝점이 마커의 어느 y좌표에 맞닿을지
+        marker.setAttribute('orient', 'auto'); // 선의 기울기에 따라 화살촉이 자동으로 회전
+        // 3. 화살촉 모양 생성 (<polygon> 또는 <path> 사용)
+        const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        polygon.setAttribute('points', '0 0, 10 3.5, 0 7'); // 삼각형 모양 정의, 배열과 비슷한(x,y)꼴
+        polygon.setAttribute('fill', 'context-stroke');
+        // 4. 생성한 요소들을 조립
+        marker.appendChild(polygon);
+        defs.appendChild(marker);
+        this.element_wires.appendChild(defs);
+        this.element_wires.style.height = `${board_height}px`;
+        this.element_wires.style.width = `${board_width}px`;
+
+
+        const tile_height = (board_height - board_gap*(N-1) - 2*board_padding)/N;
+        const tile_width = (board_width - board_gap*(N-1) - 2*board_padding)/N;
+        const tile_fontsize = tile_width / 10;
+        const tile_borderRadius = tile_width / 10;
+        for(let i=0; i < board_size; i++){
+            this.nodes.push([]);
+            for(let j=0; j < board_size; j++){
+
+                let div = document.createElement('div');
+                div.style.height   = tile_height;
+                div.style.width    = tile_width;
+                div.style.fontSize = tile_fontsize;
+                div.style.borderRadius = tile_borderRadius;
+                div.className = 'tile';
+                div.addEventListener('click',(e)=>{
+                    this.clicked(j, i);
+                })
+
+                let temp_node = new Node_v2(this, div);
+                temp.off_node();
+
+                this.nodes[i].push(temp_node);        
+            }
+        }
+        this.nodes[0][0].activate_node(1);
+    }
+    clicked(x,y){
+
+        const clicked_node = this.nodes[y][x];
+        const record_action = (x_from, y_from, x_dest, y_dest, cur_value) =>{
+            this.actions.push({x_from:x_from, y_from:y_from,x_dest:x_dest, y_dest:y_dest, val:cur_value});
+        };
+        const go_next_round = ()=>{
+
+        };
+        const reset_temp_context = ()=>{
+            for(let i=0; i < this.temp_context.temp_nodes.length; i++){
+                this.temp_context.temp_nodes[i].off_node();
+            }
+        }
+
+        if(clicked_node.status === Node.STATUS.EMPTY){
+            return;
+        }
+        if(clicked_node.value === this.cur_value){
+            clicked_node.add_value(this.cur_value);
+            record_action(-1, -1, x, y, this.cur_value);
+            go_next_round();
+            return;
+        }
+        if(clicked_node.status === Node.STATUS.OFF){
+            reset_temp_context();
+            this.temp_context.temp_nodes = [];
+            this.temp_context.last_clicked_x = x;//마지막으로 활성화 한 노드
+            this.temp_context.last_clicked_y = y;
+            this.temp_context.last_clicked_node = clicked_node;
+            for(let i=0; i < 8; i++){
+
+                const cur = Node.adjacent[i]
+                const cur_x = this.x + cur[0];
+                const cur_y = this.y + cur[1];
+
+                if(cur_x < 0 || cur_x >= Node.N || cur_y < 0 || cur_y >= Node.N) continue;
+                const adjacent_node = this.nodes[cur_y][cur_x]
+                if(adjacent_node.status === Node.STATUS.EMPTY){
+                    adjacent_node.on_node();
+                    this.temp_context.temp_nodes.push(adjacent_node);
+                }
+            }
+            return;
+        }
+        if(this.status === Node.STATUS.ON){
+            record_action(this.temp_context.last_clicked_x,this.temp_context.last_clicked_y, x, y, this.cur_value);
+            this.cnt_empty -= 1;//노드한칸 차지...
+            clicked_node.activate_node(this.cur_value);
+            this.temp_context.last_clicked_node.append_child(clicked_node);
+            this.temp_context.last_clicked_node = undefined;
+            reset_temp_context();
+            this.round_end()
+        }
+    }
+}
 class Node{
         static max = 1;
         static N = undefined;
@@ -65,7 +311,6 @@ class Node{
                 아무 자식이 자식을 가짐->무시
                 모든 자식이 자식이 없음 -> 합침
             */
-            let sum = 0;
             let node_changed = [];
             let possibles = [];
             const permutation = (nodes, acc, cur, target, nodes_rets)=>{
@@ -203,12 +448,13 @@ class Node{
                 this.div.style.background = '#7f8c8d';
         }
     }
+    //시드로부터 난수를 생성함
     class Rng {
         constructor(seed){
-            this.a = (seed >>> 0);                // 내부 상태
+            this.a = (seed >>> 0);                //내부 상태
         }
         random(){
-            this.a = (this.a + 0x6D2B79F5) >>> 0; // ← 오직 이 한 줄로 상태 갱신
+            this.a = (this.a + 0x6D2B79F5) >>> 0; //상태 갱신
             let t = this.a;
             t = Math.imul(t ^ (t >>> 15), t | 1);
             t ^= t + Math.imul(t ^ (t >>> 7), t | 61);

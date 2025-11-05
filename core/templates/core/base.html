@@ -9,7 +9,7 @@
     {% block etc %}{% endblock %}
   </head>
   <body>
-    <p id="userId" hidden>{{user.id|default:'0'}}</p>
+    <p hidden id="logout_url">{% url 'accounts:api:logout' %}</p>
     <nav class="navbar navbar-expand bg-success bg-opacity-75">
         <div class="container-fluid">
             <div class="collapse navbar-collapse " id="navbarText">

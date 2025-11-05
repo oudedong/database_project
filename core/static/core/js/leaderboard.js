@@ -1,167 +1,185 @@
 const learderBoard = document.querySelector('#leaderboard');
-const button_prev = document.querySelector('#button_prev');
-const button_next = document.querySelector('#button_next');
+const leaderboard_api_url = document.querySelector('#leaderboard_api_url').textContent;
 
 class Date_tabs{
 
-    static instance = null;
+    static tab_elements = [];
+    static diffs = [];
+    static curTab = 0;
 
-    constructor(){
-        this.tab_elements = [];
-        this.tab_st_dates = [];
-        this.tab_end_dates = [];
-        this.curTab = null;
-    }
-    static get_instance(){
-        if (Date_tabs.instance == null){
-            Date_tabs.instance = new Date_tabs();
-        }
-        return Date_tabs.instance;
-    }
-    add_tab(ele, st_date, diff=null, end_date=null){
-        if(st_date != null){
-            if(diff != null){
-                end_date = new Date();
-                end_date.setDate(st_date.getDate()-diff);
-            }
-            if(end_date == null){
-                throw new Error('end_date is null...');
-            }
-        }
-        this.tab_elements.push(ele);
-        this.tab_st_dates.push(st_date);
-        this.tab_end_dates.push(end_date);
+    static add_tab(ele, diff){
+        
+        Date_tabs.tab_elements.push(ele);
+        Date_tabs.diffs.push(diff);
 
-        const i = this.tab_elements.length - 1;
+        const i = Date_tabs.tab_elements.length - 1;
 
         ele.addEventListener('click', (e)=>{
             e.preventDefault();
-            this.click(i);
+
+            document.dispatchEvent(
+                new CustomEvent(
+                    'click:date_tab', 
+                    {detail:Date_tabs.get_range(i)}
+                ));
+            Date_tabs.curTab = i;
+            Date_tabs.update();
         });
     }
-    click(i){
-        console.log('date_tab_clicked:',i);
-        if(this.curTab == i) return;
-        this.curTab = i;
-        for(let j=0; j < this.tab_elements.length; j++){
-            if(j==i){
-                this.tab_elements[j].classList.add('active');
+    static update(){
+        for(let i = 0; i < Date_tabs.tab_elements.length; i++){
+            if(i != Date_tabs.curTab){
+                Date_tabs.tab_elements[i].classList.remove('active');
                 continue;
             }
-            this.tab_elements[j].classList.remove('active');
+            Date_tabs.tab_elements[i].classList.add('active');
         }
-        document.dispatchEvent(new CustomEvent('click:date_tab', {detail:{date_st:this.tab_st_dates[i], date_end:this.tab_end_dates[i]}}))
+    }
+    static get_range(i){
+        let st = null;
+        let end = null;
+        if(Date_tabs.diffs[i] != null){
+            st = new Date()
+            st.setDate(new Date().getDay()-Date_tabs.diffs[i]);
+            end = new Date();
+        }
+        return {date_st:st, date_end:end};
     }
 };
+class Leaderboard{
+
+    static board = document.querySelector('#leaderboard');
+
+    constructor(list,page_num,page_size){
+        Leaderboard.board.innerHTML = '';
+        for(let i = 0; i < list.length; i++){
+
+            let li = document.createElement('li');
+            li.setAttribute('class','list-group-item d-flex');
+
+            let div_rank = document.createElement('div');
+            div_rank.setAttribute('class', 'p-2');
+            div_rank.textContent = i+1 + (page_num-1)*page_size;
+
+            let div_result = document.createElement('div');
+            div_result.setAttribute('class', 'p-2 flex-grow-1');
+
+
+            let div_name = document.createElement('div');
+            let div_score = document.createElement('div');
+            let div_time = document.createElement('div');
+            let div_date = document.createElement('div');
+            div_name.setAttribute('class', 'name');
+            div_score.setAttribute('class', 'score');
+            div_time.setAttribute('class', 'time');
+            div_time.setAttribute('class', 'date');
+
+            div_name.textContent = `username: ${list[i].username}`;
+            div_score.textContent = `score: ${list[i].score}`;
+            div_time.textContent = `time: ${list[i].time}`;
+            div_date.textContent = `date: ${list[i].date}`;
+
+            div_result.appendChild(div_name);
+            div_result.appendChild(div_score);
+            div_result.appendChild(div_time);
+            div_result.appendChild(div_date);
+
+            li.appendChild(div_rank);
+            li.appendChild(div_result);
+
+            if(page_num == 1 && i < 3){
+                li.classList.add(`rank-${i+1}`);
+            }
+            Leaderboard.board.appendChild(li);
+        }
+    }
+
+}
 class Page_tabs{
 
-    static instance = null;
-    static get_instance(){
-        if (Page_tabs.instance == null){
-            Page_tabs.instance = new Page_tabs();
+    static button_prev = document.querySelector('#prev');
+    static button_next = document.querySelector('#next');
+    static page_buttons = document.querySelector('#pages');
+    static curPage = 1
+
+    constructor(page_info){
+
+        Page_tabs.page_buttons.innerHTML = '';
+        Page_tabs.curPage = page_info.curPage;
+
+        Page_tabs.button_prev.addEventListener('click',(e)=>{
+
+            // e.preventDefault()
+
+            if(Page_tabs.curPage > 1){
+                Page_tabs.curPage -= 1;
+                document.dispatchEvent(new CustomEvent('click:page_tab', {detail:{curPage:Page_tabs.curPage}}))
+            }
+            else return;
+        })
+        Page_tabs.button_next.addEventListener('click',(e)=>{
+
+            // e.preventDefault()
+
+            if(Page_tabs.curPage < page_info.num_pages){
+                Page_tabs.curPage += 1;
+                document.dispatchEvent(new CustomEvent('click:page_tab', {detail:{curPage:Page_tabs.curPage}}))
+            }
+            else return;
+        })
+
+        let left = Page_tabs.curPage;
+        let right = Page_tabs.curPage;
+        let total = 5;
+
+        while(total > 0){
+
+            let flag = false;
+
+            if(left-1 > 0){
+                left -= 1;
+                total -= 1;
+                flag = true;
+            }
+            if(right+1 <= page_info.num_pages){
+                right += 1;
+                total -= 1;
+                flag = true;
+            }
+            if(!flag){
+                break;
+            }
         }
-        return Page_tabs.instance;
-    }
+        console.log(left);
+        console.log(right);
+        console.log(total);
+        for(let i = left; i <= right; i++){
 
-    constructor(){
-        this.tab_elements = [];
-        this.page_diffs = [];
-        this.target_pages = [];
-        this.curPage = 1;
-        this.num_pages = null;
-    }
-    add_tab(ele, page_diff=null){
-        this.page_diffs.push(page_diff);
-        this.target_pages.push(null);
-        this.tab_elements.push(ele);
+            let page_button = document.createElement('li');
+            page_button.classList.add('page-item');
+            if(i == Page_tabs.curPage){
+                page_button.classList.add('active');
+            }
 
-        const i = this.tab_elements.length - 1;
+            let page_button_inner = document.createElement('a');
+            page_button_inner.classList.add('page-link');
+            page_button_inner.textContent = `${i}`;
+            page_button_inner.addEventListener('click',(e)=>{
+                e.preventDefault()
+                document.dispatchEvent(new CustomEvent('click:page_tab', {detail:{curPage:Number(page_button_inner.textContent)}}))
+            })
 
-        ele.addEventListener('click', (e)=>{
-            e.preventDefault();
-            this.click(i);
-        });
-    }
-    click(i){
-        
-        let target_page = null;
-
-        if(this.page_diffs[i] != null){
-            target_page = this.curPage + this.page_diffs[i];
-        }
-        else{
-            target_page = this.target_pages[i];
-        }
-        if(target_page == this.curPage) return;
-        if(target_page <= 0 || target_page > this.num_pages) return;
-        this.curPage = target_page;
-        console.log('target_Page:', target_page);
-        this.update();
-
-        document.dispatchEvent(new CustomEvent('click:page_tab', {detail:{curPage:this.curPage}}));
-    }
-    update(num_pages=null, curPage=null){
-
-        if(num_pages != null)
-            this.num_pages = num_pages;
-        if(curPage != null)
-            this.curPage = curPage;
-        if(this.num_pages == null){
-            throw new Error('page_tabs is not inited...');
-        }
-
-        let temp = [];
-
-        for(let i = 0; i < this.tab_elements.length; i++){
-            console.log(this.page_diffs[i]);
-            if(this.page_diffs[i] != null)
-                continue;
-            temp.push(i);
-        }
-        let left_len = Math.max(Math.floor((temp.length-1)/2),0)
-        let rigth_len = Math.max(temp.length-left_len-1,0);
-        console.log(temp.length);
-        console.log(left_len);
-        console.log(rigth_len);
-        for(let i = 0; i < left_len; i++){
-            let i2 = temp[i];
-            this.target_pages[i2] = this.curPage - (left_len-i);
-            this.tab_elements[i2].textContent = this.target_pages[i2];
-        }
-        this.target_pages[temp[left_len]] = this.curPage
-        this.tab_elements[temp[left_len]].textContent = this.target_pages[temp[left_len]];
-        for(let i = 0; i < rigth_len; i++){
-            let i2 = temp[i+left_len+1];
-            this.target_pages[i2] = this.curPage + (i+1);
-            this.tab_elements[i2].textContent = this.target_pages[i2];
-        }
-
-        for(let i = 0; i < this.tab_elements.length; i++){
-
-            console.log(this.target_pages[i], this.curPage);
-            if(this.target_pages[i] == this.curPage)
-                this.tab_elements[i].classList.add('active');
-            else
-                this.tab_elements[i].classList.remove('active');
-
-            let target_page = null
-
-            if(this.page_diffs[i]!=null)
-                target_page = this.curPage+this.page_diffs[i];
-            else 
-                target_page = this.target_pages[i];
-
-            if(target_page <= 0 || target_page > this.num_pages)
-                this.tab_elements[i].classList.add('disabled');
-            else
-                this.tab_elements[i].classList.remove('disabled');
+            page_button.appendChild(page_button_inner);
+            Page_tabs.page_buttons.appendChild(page_button);
         }
     }
 }
 
-async function get_page(page, range, page_size=10){
 
-    let url = "/main/api/leaderboard"+`?page=${page}&page_size=${page_size}`
+async function get_page(page, range=null, page_size=10){
+
+    let url = leaderboard_api_url+`?page=${page}&page_size=${page_size}`;
+    console.log(url);
     if(range != null) url += `&range=${range}`;
     const response = await fetch(url);
     
@@ -171,75 +189,7 @@ async function get_page(page, range, page_size=10){
     }
     return response.json();
 }
-function make_list(list){
 
-    for(let i = 0; i < list.length; i++){
-
-        li = document.createElement('li');
-        li.setAttribute('class','list-group-item d-flex');
-
-        div_rank = document.createElement('div');
-        div_result = document.createElement('div');
-
-        div_rank.setAttribute('class', 'p-2');
-        div_rank.textContent = i+1;
-        div_result.setAttribute('class', 'p-2 flex-grow-1');
-
-
-        div_name = document.createElement('div');
-        div_score = document.createElement('div');
-        div_time = document.createElement('div');
-        div_date = document.createElement('div');
-
-
-        div_name.setAttribute('class', 'name');
-        div_score.setAttribute('class', 'score');
-        div_time.setAttribute('class', 'time');
-        div_time.setAttribute('class', 'date');
-
-        div_name.textContent = `username: ${list[i].username}`;
-        div_score.textContent = `score: ${list[i].score}`;
-        div_time.textContent = `time: ${list[i].time}`;
-        div_date.textContent = `date: ${list[i].date}`;
-
-        div_result.appendChild(div_name);
-        div_result.appendChild(div_score);
-        div_result.appendChild(div_time);
-        div_result.appendChild(div_date);
-
-        li.appendChild(div_rank);
-        li.appendChild(div_result);
-
-        learderBoard.appendChild(li);
-    }
-}
-async function get_and_makeList(page, range){
-    response = await get_page(page, range);
-    make_list(response.scores);
-    if(page == 1){
-        classes = ['rank-first', 'rank-second', 'rank-third']
-        for(let i = 0; i < 3 && i < learderBoard.childNodes.length; i++){
-            learderBoard.childNodes[i].classList.add(classes[i]);
-        }
-    }
-    return response.page_info;
-}
-
-const date_tabs = Date_tabs.get_instance();
-date_tabs.add_tab(document.querySelector('#rank_total'), null);
-date_tabs.add_tab(document.querySelector('#rank_weekly'), new Date(), 7);
-date_tabs.add_tab(document.querySelector('#rank_month'), new Date(), 31);
-
-const page_tabs = Page_tabs.get_instance();
-const page_tabs_eles = document.querySelectorAll('.page-link');
-for(let i=0; i < page_tabs_eles.length; i++){
-    if(page_tabs_eles[i].textContent == 'prev')
-        page_tabs.add_tab(page_tabs_eles[i], diff=-1);
-    else if(page_tabs_eles[i].textContent == 'next')
-        page_tabs.add_tab(page_tabs_eles[i], diff=1);
-    else
-        page_tabs.add_tab(page_tabs_eles[i]);
-}
 
 function dateToYMDString(date){
     console.log('at dateToYMDString:',date);
@@ -249,34 +199,40 @@ function dateToYMDString(date){
     ret += String(date.getDate()).padStart(2,'0');
     return ret;
 }
-function clear_leaderBoard(){
-    while(learderBoard.childNodes.length > 0){
-        learderBoard.removeChild(learderBoard.childNodes[0]);
-    }
-}
 document.addEventListener('click:date_tab',async (e)=>{
-    date_st = e.detail.date_st;
-    date_end = e.detail.date_end;
-    curPage = 1;
-    clear_leaderBoard();
-    if(date_st != null && date_end != null)
-        page_info = await get_and_makeList(curPage, dateToYMDString(date_st)+'~'+dateToYMDString(date_end));
-    else
-        page_info = await get_and_makeList(curPage, null);
-    console.log(page_info);//
-    page_tabs.update(page_info.num_pages, curPage);
+
+    let date_st = e.detail.date_st;
+    let date_end = e.detail.date_end;
+    let range = null;
+    if(date_st != null && date_end != null){
+        range = dateToYMDString(date_st)+'~'+dateToYMDString(date_end);
+    }
+    
+    let response = await get_page(1,range);
+    new Leaderboard(response.scores,1,10);
+    new Page_tabs(response.page_info);
 })
 document.addEventListener('click:page_tab',async (e)=>{
-    curPage = e.detail.curPage;
-    clear_leaderBoard();
-    if(date_st != null && date_end != null)
-        page_info = await get_and_makeList(curPage, dateToYMDString(date_st)+'~'+dateToYMDString(date_end));
-    else
-        page_info = await get_and_makeList(curPage, null);
+
+    let temp = Date_tabs.get_range(Date_tabs.curTab);
+    let curPage = e.detail.curPage;
+    let date_st = temp.date_st;
+    let date_end = temp.date_end;
+    let range = null;
+
+    if(date_st != null && date_end != null){
+        range = dateToYMDString(date_st)+'~'+dateToYMDString(date_end);
+    }
+    
+    let response = await get_page(curPage,range);
+    new Leaderboard(response.scores,curPage,10);
+    new Page_tabs(response.page_info);
 })
 
-let date_st = null;
-let date_end = null;
-let curPage = 1;
+Date_tabs.add_tab(document.querySelector('#rank_total'), null);
+Date_tabs.add_tab(document.querySelector('#rank_weekly'), 7);
+Date_tabs.add_tab(document.querySelector('#rank_month'), 31);
 
-date_tabs.click(0);
+let temp = await get_page(1,null);
+new Leaderboard(temp.scores,1,10);
+new Page_tabs(temp.page_info);

@@ -2,12 +2,15 @@
 {% load static %}
 {% block etc %} 
 <link href="{% static 'core/css/main.css' %}" rel="stylesheet"> 
-<script type='module' src="{% static 'core/js/main.js' %}" defer></script>
+<script type='module' src="{% static 'core/js/main2.js' %}" defer></script>
 {% endblock %}
 {% block title %}tree_puzzle{% endblock %}
 {% block content %}
+<p hidden id="submit_url">{% url 'core:api:submit' %}</p>
+<p hidden id="account_check_url">{% url 'accounts:api:check_status' %}</p>
 <div class="d-flex flex-column align-items-center p-2 gap-3">
     <div class="d-flex flex-column align-items-center p-2 gap-2 border border-success-subtle rounded-1">
+        <!-- 게임판 -->
         <div id="hud">Score: <span id="score">0</span> • Time: <span id="time">0.0</span>s • next: <span id="next">1</span></div>
         <div id="board" class="board">
             <svg id="wires" class="wires" aria-hidden="true"></svg>
@@ -19,7 +22,7 @@
             {% endif %}
         </div>
     </div>
-    <!-- 규칙 카드 -->
+    <!-- 게임규칙 -->
     <div class="card border-success-subtle shadow-sm">
         <div class="card-header bg-success-subtle text-success-emphasis fw-semibold">
             규칙
