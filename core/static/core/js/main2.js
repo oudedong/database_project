@@ -463,7 +463,7 @@ class Controller{
         this.state_panel.update({score:score, cur_value:this.cur_value});
         this.board.update({cur_value:this.cur_value});
         if(context.cnt_empty <= 0){
-            if(this.this.submit_button != undefined)
+            if(this.submit_button != undefined)
                 this.submit_button.disabled = false;
             this.state_panel.end();
             this.data.score = score;
