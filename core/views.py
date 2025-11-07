@@ -59,22 +59,29 @@ def leaderboard(request):
 def leaderboard_api(request):
     #페이지 크기, 번호, 날짜범위 설정
     page = request.GET.get('page')
-    date_range:str = request.GET.get('range')
+    type = request.GET.get('type')
     page_size = request.GET.get('page_size')
-    date_st = None
-    date_end = None
     if page_size is None: page_size = 10
     if page is None: page = 1 
     else: page = int(page)
-    if not date_range is None:
-        date_st, date_end = date_range.split('~')
-        date_st = datetime.datetime.strptime(date_st, '%Y%m%d')
-        date_end = datetime.datetime.strptime(date_end, '%Y%m%d')
 
-    # #db로 부터 범위내 결과들을 불러옴(프로시저 사용)
-    with connection.cursor() as cursor:
-        cursor.execute("CALL get_result_by_range(%s, %s)", [date_st,date_end])
-        paginator = Paginator(cursor.fetchall(), page_size)
+    if type == 'user_rank':
+        #db로 부터 유저별 순위를 불러옴(프로시저 사용)
+        with connection.cursor() as cursor:
+            cursor.execute("CALL get_result_by_user()",[])
+            paginator = Paginator(cursor.fetchall(), page_size)
+    elif type == 'date_rank':
+        date_range:str = request.GET.get('range')
+        date_st = None
+        date_end = None
+        if not date_range is None:
+            date_st, date_end = date_range.split('~')
+            date_st = datetime.datetime.strptime(date_st, '%Y%m%d')
+            date_end = datetime.datetime.strptime(date_end, '%Y%m%d')
+        #db로 부터 기간내 순위를 불러옴(프로시저 사용)
+        with connection.cursor() as cursor:
+            cursor.execute("CALL get_result_by_range(%s, %s)", [date_st,date_end])
+            paginator = Paginator(cursor.fetchall(), page_size)
 
     #형식에 맞게 반환함
     page_obj = paginator.page(page)

@@ -1,49 +1,42 @@
 const learderBoard = document.querySelector('#leaderboard');
 const leaderboard_api_url = document.querySelector('#leaderboard_api_url').textContent;
 
-class Date_tabs{
+class Category_tabs{
 
     static tab_elements = [];
-    static diffs = [];
+    static details = [];
     static curTab = 0;
 
-    static add_tab(ele, diff){
+    static add_tab(ele, detail){
         
-        Date_tabs.tab_elements.push(ele);
-        Date_tabs.diffs.push(diff);
+        Category_tabs.tab_elements.push(ele);
+        Category_tabs.details.push(detail);
 
-        const i = Date_tabs.tab_elements.length - 1;
+        const i = Category_tabs.tab_elements.length - 1;
 
         ele.addEventListener('click', (e)=>{
             e.preventDefault();
 
             document.dispatchEvent(
                 new CustomEvent(
-                    'click:date_tab', 
-                    {detail:Date_tabs.get_range(i)}
+                    'click:Category_tabs', 
+                    {detail:{detail:Category_tabs.details[i]}}
                 ));
-            Date_tabs.curTab = i;
-            Date_tabs.update();
+            Category_tabs.curTab = i;
+            Category_tabs.update();
         });
     }
     static update(){
-        for(let i = 0; i < Date_tabs.tab_elements.length; i++){
-            if(i != Date_tabs.curTab){
-                Date_tabs.tab_elements[i].classList.remove('active');
+        for(let i = 0; i < Category_tabs.tab_elements.length; i++){
+            if(i != Category_tabs.curTab){
+                Category_tabs.tab_elements[i].classList.remove('active');
                 continue;
             }
-            Date_tabs.tab_elements[i].classList.add('active');
+            Category_tabs.tab_elements[i].classList.add('active');
         }
     }
-    static get_range(i){
-        let st = null;
-        let end = null;
-        if(Date_tabs.diffs[i] != null){
-            st = new Date()
-            st.setDate(new Date().getDay()-Date_tabs.diffs[i]);
-            end = new Date();
-        }
-        return {date_st:st, date_end:end};
+    static get_detail(i){
+        return Category_tabs.details[i];
     }
 };
 class Leaderboard{
@@ -185,21 +178,21 @@ class Page_tabs{
 }
 
 
-async function get_page(page, range=null, page_size=10){
+async function get_page(page, detail, page_size=10){
 
     let url = leaderboard_api_url+`?page=${page}&page_size=${page_size}`;
+    let params = Object.entries(detail);
+    for(let i = 0; i < params.length; i++){
+        url += `&${params[i][0]}=${params[i][1]}`;
+    }
     console.log(url);
-    if(range != null) url += `&range=${range}`;
     const response = await fetch(url);
-    
     if(!response.ok){
         let error_msg = await response.text();
         alert(`failed to get leaderboard...: ${error_msg}`)
     }
     return response.json();
 }
-
-
 function dateToYMDString(date){
     console.log('at dateToYMDString:',date);
     let ret = '';
@@ -208,40 +201,38 @@ function dateToYMDString(date){
     ret += String(date.getDate()).padStart(2,'0');
     return ret;
 }
-document.addEventListener('click:date_tab',async (e)=>{
-
-    let date_st = e.detail.date_st;
-    let date_end = e.detail.date_end;
-    let range = null;
-    if(date_st != null && date_end != null){
-        range = dateToYMDString(date_st)+'~'+dateToYMDString(date_end);
+function parse_detail(detail){
+    let result = {}
+    if(detail.type == 'date_rank'){
+        if(detail.time_diff!=undefined){
+            let date_st = new Date();
+            date_st.setDate(date_st.getDate() + detail.time_diff);
+            result.range = dateToYMDString(date_st)+'~'+dateToYMDString(new Date());
+        }
     }
-    
-    let response = await get_page(1,range);
+    result.type = detail.type;
+    return result;
+}
+document.addEventListener('click:Category_tabs',async (e)=>{
+    const detail = parse_detail(e.detail.detail);
+    let response = await get_page(1, detail, 10);
     new Leaderboard(response.scores,1,10);
     new Page_tabs(response.page_info);
 })
 document.addEventListener('click:page_tab',async (e)=>{
 
-    let temp = Date_tabs.get_range(Date_tabs.curTab);
+    const detail = parse_detail(Category_tabs.get_detail(Category_tabs.curTab));
     let curPage = e.detail.curPage;
-    let date_st = temp.date_st;
-    let date_end = temp.date_end;
-    let range = null;
-
-    if(date_st != null && date_end != null){
-        range = dateToYMDString(date_st)+'~'+dateToYMDString(date_end);
-    }
-    
-    let response = await get_page(curPage,range);
+    let response = await get_page(curPage, detail, 10);
     new Leaderboard(response.scores,curPage,10);
     new Page_tabs(response.page_info);
 })
 
-Date_tabs.add_tab(document.querySelector('#rank_total'), null);
-Date_tabs.add_tab(document.querySelector('#rank_weekly'), 7);
-Date_tabs.add_tab(document.querySelector('#rank_month'), 31);
+Category_tabs.add_tab(document.querySelector('#rank_total'), {type:'date_rank',time_diff:null});
+Category_tabs.add_tab(document.querySelector('#rank_weekly'), {type:'date_rank',time_diff:-7});
+Category_tabs.add_tab(document.querySelector('#rank_month'), {type:'date_rank',time_diff:-31});
+Category_tabs.add_tab(document.querySelector('#rank_user'), {type:'user_rank'});
 
-let temp = await get_page(1,null);
+let temp = await get_page(1,{type:'date_rank',time_diff:null},10);
 new Leaderboard(temp.scores,1,10);
 new Page_tabs(temp.page_info);
