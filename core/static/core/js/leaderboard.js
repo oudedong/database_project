@@ -109,7 +109,7 @@ class Page_tabs{
 
         Page_tabs.button_prev.addEventListener('click',(e)=>{
 
-            // e.preventDefault()
+            e.preventDefault()
 
             if(Page_tabs.curPage > 1){
                 Page_tabs.curPage -= 1;
@@ -119,7 +119,7 @@ class Page_tabs{
         })
         Page_tabs.button_next.addEventListener('click',(e)=>{
 
-            // e.preventDefault()
+            e.preventDefault()
 
             if(Page_tabs.curPage < page_info.num_pages){
                 Page_tabs.curPage += 1;
@@ -153,6 +153,15 @@ class Page_tabs{
         console.log(left);
         console.log(right);
         console.log(total);
+        if(left < Page_tabs.curPage)
+            Page_tabs.button_prev.classList.remove('disabled');
+        else
+            Page_tabs.button_prev.classList.add('disabled');
+        if(right > Page_tabs.curPage)
+            Page_tabs.button_next.classList.remove('disabled');
+        else
+            Page_tabs.button_next.classList.add('disabled');
+        
         for(let i = left; i <= right; i++){
 
             let page_button = document.createElement('li');

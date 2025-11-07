@@ -27,35 +27,39 @@ def valify(actions, N, score, seed):
 
 
     # print(actions)
-    k = 1
+    k = 0
+    val_server = 1
     for action in actions:
 
         # print(f'{k}th....')
-
-        k+=1
 
         x_dest = action['x_dest']
         y_dest = action['y_dest']
         x_from = action['x_from']
         y_from = action['y_from']
         val = action['val']
-        r = rng.random()
-        val_server = math.floor(r * math.floor(context['max']/2))+1
+        
 
         if val != val_server:
-            # print('val dismatch...')
-            # print('seed:',seed)
-            # print('vals:',val, val_server)
+            print(f'at {k}th...')
+            print('val dismatch...')
+            print('seed:',seed)
+            print('vals_from_action:',val,'/val_server:',val_server)
+            print('max_from_action:',action['max_value'],'/max_server:',context['max'])
             # print('max:',context['max'])
             # print('r:', r)
-            rng_temp = Mulberry32(seed)
-            print([rng_temp.random() for i in range(5)])
-
+            # rng_temp = Mulberry32(seed)
+            # print([rng_temp.random() for i in range(5)])
             return False
-        if (y_from != -1) and (x_from != -1):
+        if (y_from >= -1) and (x_from >= -1):
             # print(f'from x,y:{x_from}, {y_from}')
             tiles[y_from][x_from].clicked(val)
         tiles[y_dest][x_dest].clicked(val)
+        # print('cur_action:',action)
+        # print('server_ret:',context)
+        r = rng.random()
+        val_server = math.floor(r * math.floor(context['max']/2))+1
+        k+=1
     if context['max'] != score:
         return False
     return True

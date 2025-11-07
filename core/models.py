@@ -4,7 +4,7 @@ import datetime
 
 # Create your models here.
 class Result(models.Model):
-    userId = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     time   = models.IntegerField(null=True)
     score  = models.IntegerField(null=True)
     date   = models.DateField(default=datetime.date.today)

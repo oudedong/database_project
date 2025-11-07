@@ -1,12 +1,14 @@
 from django.shortcuts import render
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
 from django.views.decorators.http import require_GET, require_POST
+from django.urls import reverse
 from .models import Result
 from django.core.paginator import Paginator
 from django.contrib.auth.models import User
 from .valify import valify
 import json
 import datetime
+from django.db import connection
 
 @require_GET
 def main(request):
@@ -15,7 +17,6 @@ def main(request):
 @require_POST
 def submit(request):
     try:
-
         data = json.loads(request.body)
         requires = ['userId','score', 'time', 'actions','seed']
 
@@ -33,14 +34,14 @@ def submit(request):
 
         #유저확인
         if not (request.user.is_authenticated and request.user.id == userId):
-            return HttpResponse('wrong user info...',status=400)
+            return HttpResponse('wrong user info',status=400)
         #점수검증
         if not valify(actions, 5, score, seed):
-            return HttpResponse('valification fail... did you cheat?',status=400)
+            return HttpResponse('valification fail',status=400)
         
         #저장
         game = Result()
-        game.userId = User.objects.get(id=userId)
+        game.user = User.objects.get(id=userId)
         game.score = score
         game.time = time
         game.save()
@@ -56,8 +57,6 @@ def leaderboard(request):
 
 @require_GET
 def leaderboard_api(request):
-
-
     #페이지 크기, 번호, 날짜범위 설정
     page = request.GET.get('page')
     date_range:str = request.GET.get('range')
@@ -72,23 +71,20 @@ def leaderboard_api(request):
         date_st = datetime.datetime.strptime(date_st, '%Y%m%d')
         date_end = datetime.datetime.strptime(date_end, '%Y%m%d')
 
-    #db로 부터 범위내 결과들을 불러옴
-    all_result = None
-    if date_range is None:
-        all_result = Result.objects.all().order_by('-score')
-    else:
-        all_result = Result.objects.filter(date__range=(date_st, date_end)).order_by('-score')#?
-    paginator = Paginator(all_result, page_size)    
+    # #db로 부터 범위내 결과들을 불러옴(프로시저 사용)
+    with connection.cursor() as cursor:
+        cursor.execute("CALL get_result_by_range(%s, %s)", [date_st,date_end])
+        paginator = Paginator(cursor.fetchall(), page_size)
 
     #형식에 맞게 반환함
     page_obj = paginator.page(page)
     to_response = {'scores':[]}
     for obj in page_obj:
         temp = {
-            'username': obj.userId.username,
-            'score'   : obj.score,
-            'time'    : obj.time,
-            'date'    : obj.date
+            'username': obj[0],
+            'time'    : obj[1],
+            'score'   : obj[2],
+            'date'    : obj[3]
         }
         to_response['scores'].append(temp)
     to_response['page_info'] = {'prev':page_obj.has_previous(), 'next':page_obj.has_previous(), 'curPage':page, 'num_pages':paginator.num_pages}

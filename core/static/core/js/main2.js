@@ -77,11 +77,14 @@ class Node_v2{
 
         if(this.parent != undefined){
             let temp = this.parent.merge_with_childs();
+            console.log('parents_merge_ret:',temp);
             if(temp != undefined){
-                result.max_value = Math.max([result.max_value, temp.max_value]);
+                console.log('gathered');
+                result.max_value = Math.max(result.max_value, temp.max_value);
                 result.cnt_merge += temp.cnt_merge;
             }
         }
+        console.log('my_merge_ret:',result);
         return result;
     }
     reset_node(){
@@ -89,6 +92,7 @@ class Node_v2{
         this.status = Node_v2.STATUS.EMPTY;
         this.div.textContent = this.value;
         this.div.style.background = '#7f8c8d';
+        this.parent = undefined;
     }
     on_node(){
         if(this.status!=Node_v2.STATUS.EMPTY){
@@ -229,6 +233,7 @@ class Board{
             if(merge_result != undefined){
                 this.cnt_empty += merge_result.cnt_merge;
                 this.max_value = Math.max(this.max_value, merge_result.max_value);
+                console.log('merge_result:',merge_result);
             }
 
             function centerOfCell(node){
@@ -280,7 +285,7 @@ class Board{
         };
         const go_next_round = (x_from, y_from, x_dest, y_dest, cur_value) =>{
             const context_to_controller = {
-                action:{x_from:x_from, y_from:y_from,x_dest:x_dest, y_dest:y_dest, val:cur_value},
+                action:{x_from:x_from, y_from:y_from,x_dest:x_dest, y_dest:y_dest, val:cur_value, max_value:this.max_value},
                 max_value:this.max_value,
                 cnt_empty:this.cnt_empty
             };
@@ -310,6 +315,7 @@ class Board{
         if(clicked_node.value == this.cur_value){
             console.log('clicked_1');
             clicked_node.add_value(this.cur_value);
+            reset_temp_context();
             postprocess();
             go_next_round(-1, -1, x, y, this.cur_value);
             return;
@@ -429,11 +435,11 @@ class Controller{
                         submit.disabled = true;
                     }
                     else{
-                        m = await response.text();
+                        let m = await response.text();
                         alert(`submit failed:${m}`);
                     }
                 } catch (error) {
-                    alert(`server not response...`)
+                    alert('server not response');
                 }
             });
         }
@@ -457,9 +463,10 @@ class Controller{
         this.state_panel.update({score:score, cur_value:this.cur_value});
         this.board.update({cur_value:this.cur_value});
         if(context.cnt_empty <= 0){
+            this.submit_button.disabled = false;
             this.state_panel.end();
             this.data.score = score;
-            this.time_len = this.state_panel.get_result().time_len; 
+            this.data.time = this.state_panel.get_result().time_len; 
             let user = await fetch(this.login_check_url); 
             user = await user.json(); 
             user = user.user;
@@ -482,4 +489,5 @@ class Rng {
     }
 }
 
-new Controller();
+let gogogo = new Controller();
+window.gogogo = gogogo;
