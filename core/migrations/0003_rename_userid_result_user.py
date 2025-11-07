@@ -2,6 +2,42 @@
 
 from django.db import migrations
 
+PROCEDURE_get_result_by_range = """
+DROP PROCEDURE IF EXISTS get_result_by_range;
+CREATE PROCEDURE get_result_by_range (
+    IN date_st Date,
+    IN date_end Date
+)
+BEGIN
+	IF date_st IS NULL OR date_end IS NULL THEN
+		SET date_st = (SELECT min(date) FROM core_result);
+        SET date_end = (SELECT max(date) FROM core_result);
+	END IF;
+	SELECT auth_user.username, core_result.*
+	FROM core_result JOIN auth_user ON core_result.user_id = auth_user.id
+	WHERE date between date_st AND date_end
+    ORDER BY core_result.score DESC;
+END
+"""
+PROCEDURE_get_result_by_user = """
+DROP PROCEDURE IF EXISTS get_result_by_user;
+CREATE PROCEDURE get_result_by_user()
+BEGIN
+	SELECT u.username, r.*
+	FROM core_result r
+	JOIN (
+		SELECT cr.user_id,
+			(SELECT x.id
+			FROM core_result x
+			WHERE x.user_id = cr.user_id
+			ORDER BY x.score DESC, x.time ASC, x.date DESC, x.id DESC
+			LIMIT 1) AS best_id
+		FROM core_result cr
+		GROUP BY cr.user_id
+	) b ON r.id = b.best_id
+	JOIN auth_user u ON u.id = r.user_id;
+END
+"""
 
 class Migration(migrations.Migration):
 
@@ -15,4 +51,6 @@ class Migration(migrations.Migration):
             old_name='userId',
             new_name='user',
         ),
+        migrations.RunSQL(PROCEDURE_get_result_by_range, reverse_sql="DROP PROCEDURE IF EXISTS get_result_by_range;"),
+        migrations.RunSQL(PROCEDURE_get_result_by_user, reverse_sql="DROP PROCEDURE IF EXISTS get_result_by_user;")
     ]
