@@ -8,12 +8,11 @@ class Node_v2{
         ON   : 2, //활성화+값없음
     };
 
-   constructor(board, div, value=undefined, parent=undefined){
+   constructor(div, value=undefined, parent=undefined){
         this.value  = value;
         this.childs  = [];
         this.parent = parent;
         this.div = div
-        this.board = board;
         if(value){
             this.status = Node_v2.STATUS.OFF;
         } else{
@@ -38,25 +37,27 @@ class Node_v2{
                 return true;
             if(cur_index >= possibles.length)
                 return false;
-            if(acc > target)
+            if(accumulate > target_sum)
                 return false;
 
             let result = false;
 
             found_nodes.push(possibles[cur_index]);
-            result = permutation(possibles, accumulate+possibles[cur].value, cur_index+1, target_sum, found_nodes)
+            result = permutation(possibles, accumulate+possibles[cur_index].value, cur_index+1, target_sum, found_nodes)
             if(result)return true;
             found_nodes.pop();
             result = permutation(possibles, accumulate, cur_index+1, target_sum, found_nodes)
             return result;
         }
 
+        let max_value = 0;
         let found_nodes = [];
         let result = permutation(possibles, 0, 0, this.value, found_nodes);
         if(!result) return; //실패
         this.value *= 2;
-        if(this.value > this.board.max_value)
-            this.board.max_value = this.value;
+        this.div.textContent = this.value;
+        if(this.value > max_value)
+            max_value = this.value;
         for(let i = 0; i < found_nodes.length; i++){
             found_nodes[i].reset_node();
         }
@@ -69,8 +70,19 @@ class Node_v2{
         }
         this.childs = new_childs;
         
-        if(this.parent != undefined)
-            this.parent.merge_with_childs();
+        result = {
+            max_value: max_value,
+            cnt_merge: found_nodes.length
+        };
+
+        if(this.parent != undefined){
+            let temp = this.parent.merge_with_childs();
+            if(temp != undefined){
+                result.max_value = Math.max([result.max_value, temp.max_value]);
+                result.cnt_merge += temp.cnt_merge;
+            }
+        }
+        return result;
     }
     reset_node(){
         this.value = undefined;
@@ -89,7 +101,7 @@ class Node_v2{
         if(this.status!=Node_v2.STATUS.ON){
             throw Error('tried to turn off none on node...');
         }
-        if(this.value != none){
+        if(this.value != undefined){
             this.status = Node_v2.STATUS.OFF;
             this.div.style.background = '#f2f2f2';
         }
@@ -111,6 +123,7 @@ class Node_v2{
             throw Error('no add');
         }
         this.value += value;
+        this.div.textContent = this.value;
     }
 }
 class Board{
@@ -165,6 +178,12 @@ class Board{
         this.element_wires.style.height = `${board_height}px`;
         this.element_wires.style.width = `${board_width}px`;
 
+        this.edges = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        this.edges.setAttribute('id','edges');
+        this.edges.style.height = `${board_height}px`;
+        this.edges.style.width = `${board_width}px`;
+        this.element_wires.appendChild(this.edges);
+
 
         const tile_height = (board_height - board_gap*(this.board_size-1) - 2*board_padding)/this.board_size;
         const tile_width = (board_width - board_gap*(this.board_size-1) - 2*board_padding)/this.board_size;
@@ -185,7 +204,7 @@ class Board{
                 })
                 this.element_board.appendChild(div);
 
-                let temp_node = new Node_v2(this, div);
+                let temp_node = new Node_v2(div);
                 temp_node.reset_node();
 
                 this.nodes[i].push(temp_node);
@@ -197,24 +216,25 @@ class Board{
     clicked(x,y){
 
         const clicked_node = this.nodes[y][x];
-        console.log('herererere');
-        console.log(clicked_node.value);
-        console.log(this.cur_value);
-        const create_context = (x_from, y_from, x_dest, y_dest, cur_value) =>{
-            return {
-                action:{x_from:x_from, y_from:y_from,x_dest:x_dest, y_dest:y_dest, val:cur_value},
-                max_value:this.max_value,
-                cnt_empty:this.cnt_empty
-            };
-        };
-        const postprocess_and_go_next_round = (context)=>{
-            if(clicked_node.parent != undefined)
-                clicked_node.parent.merge_with_childs();
+
+        const postprocess = ()=>{
+
+            const element_board = this.element_board;
+            const edges = this.edges;
+            let merge_result = undefined;
+
+            if(clicked_node.parent != undefined){
+                merge_result = clicked_node.parent.merge_with_childs();
+            }
+            if(merge_result != undefined){
+                this.cnt_empty += merge_result.cnt_merge;
+                this.max_value = Math.max(this.max_value, merge_result.max_value);
+            }
 
             function centerOfCell(node){
         
                 const cr = node.div.getBoundingClientRect();
-                const br = this.element_board.getBoundingClientRect();
+                const br = element_board.getBoundingClientRect();
 
                 return { x: cr.left - br.left + cr.width/2,
                          y: cr.top  - br.top  + cr.height/2 };
@@ -237,15 +257,17 @@ class Board{
 
                 // console.log(node_from_pos);
                 // console.log(node_to_pos);
-
+                
+                ln.setAttribute('stroke', 'orange');
+                ln.setAttribute('stroke-width', '2');
                 ln.setAttribute('x1', node_from_pos.x);
                 ln.setAttribute('y1', node_from_pos.y);
                 ln.setAttribute('x2', node_to_pos.x);
                 ln.setAttribute('y2', node_to_pos.y);
                 ln.setAttribute('marker-end', 'url(#arrowhead)');
-                this.element_wires.appendChild(ln);
+                edges.appendChild(ln);
             }
-            while (this.element_wires.firstChild) this.element_wires.removeChild(this.element_wires.firstChild);
+            while (edges.firstChild) edges.removeChild(edges.firstChild);
             for(let i = 0; i < this.board_size; i++){
                 for(let j = 0; j < this.board_size; j++){
                     const st_node = this.nodes[i][j];
@@ -255,50 +277,79 @@ class Board{
                     }
                 }
             }
-            this.controller.go_next_round(context);
+        };
+        const go_next_round = (x_from, y_from, x_dest, y_dest, cur_value) =>{
+            const context_to_controller = {
+                action:{x_from:x_from, y_from:y_from,x_dest:x_dest, y_dest:y_dest, val:cur_value},
+                max_value:this.max_value,
+                cnt_empty:this.cnt_empty
+            };
+            this.controller.go_next_round(context_to_controller);
         };
         const reset_temp_context = ()=>{
             for(let i=0; i < this.temp_context.temp_nodes.length; i++){
-                this.temp_context.temp_nodes[i].off_node();
+                if(this.temp_context.temp_nodes[i].status === Node_v2.STATUS.ON)
+                    this.temp_context.temp_nodes[i].off_node();
             }
+            this.temp_context.temp_nodes = [];
+            this.temp_context.last_clicked_node = undefined;
+            this.temp_context.last_clicked_x = undefined;
+            this.temp_context.last_clicked_y = undefined;
         }
 
+        console.log('at_Board=====================');
+        console.log('clicked_node_value',clicked_node.value);
+        console.log('clicked_node_status',clicked_node.status);
+        console.log('node_V2_statuses:',Node_v2.STATUS.EMPTY,Node_v2.STATUS.OFF,Node_v2.STATUS.ON);
+        console.log('board.cur_value',this.cur_value);
+
         if(clicked_node.status === Node_v2.STATUS.EMPTY){
+            console.log('clicked_0');
             return;
         }
         if(clicked_node.value == this.cur_value){
+            console.log('clicked_1');
             clicked_node.add_value(this.cur_value);
-            postprocess_and_go_next_round(create_context(-1, -1, x, y, this.cur_value));
+            postprocess();
+            go_next_round(-1, -1, x, y, this.cur_value);
             return;
         }
         if(clicked_node.status === Node_v2.STATUS.OFF){
+            console.log('clicked_2');
             reset_temp_context();
-            this.temp_context.temp_nodes = [];
             this.temp_context.last_clicked_x = x;//마지막으로 활성화 한 노드
             this.temp_context.last_clicked_y = y;
             this.temp_context.last_clicked_node = clicked_node;
             for(let i=0; i < 8; i++){
 
                 const cur = Board.adjacent[i]
-                const cur_x = this.x + cur[0];
-                const cur_y = this.y + cur[1];
+                const cur_x = x + cur[0];
+                const cur_y = y + cur[1];
 
-                if(cur_x < 0 || cur_x >= Node.N || cur_y < 0 || cur_y >= Node.N) continue;
+                if(cur_x < 0 || cur_x >= this.board_size || cur_y < 0 || cur_y >= this.board_size) continue;
+                console.log('adjacent');
+                console.log('x:',cur_x);
+                console.log('y:',cur_y);
                 const adjacent_node = this.nodes[cur_y][cur_x]
-                if(adjacent_node.status === Node.STATUS.EMPTY){
+                if(adjacent_node.status === Node_v2.STATUS.EMPTY){
                     adjacent_node.on_node();
                     this.temp_context.temp_nodes.push(adjacent_node);
                 }
             }
             return;
         }
-        if(this.status === Node_v2.STATUS.ON){
+        if(clicked_node.status === Node_v2.STATUS.ON){
+            console.log('clicked_3');
             this.cnt_empty -= 1;//노드한칸 차지...
             clicked_node.activate_node(this.cur_value);
             this.temp_context.last_clicked_node.append_child(clicked_node);
             this.temp_context.last_clicked_node = undefined;
+
+            const last_clicked_x = this.temp_context.last_clicked_x;
+            const last_clicked_y = this.temp_context.last_clicked_y;
             reset_temp_context();
-            postprocess_and_go_next_round(create_context(this.temp_context.last_clicked_x,this.temp_context.last_clicked_y, x, y, this.cur_value))
+            postprocess()
+            go_next_round(last_clicked_x,last_clicked_y, x, y, this.cur_value);
         }
     }
     update(context){
@@ -321,7 +372,7 @@ class State_panel{
     }
     update(context){
         this.score_view.textContent = context.score;
-        this.cur_value_view = context.cur_value;
+        this.cur_value_view.textContent = context.cur_value;
     }
     end(){
         clearInterval(this.timer)
@@ -391,11 +442,13 @@ class Controller{
 
         let score = context.max_value;
         let rand = this.rng.random();
-        this.cur_value = Math.floor(rand*Math.floor(this.max/2))+1
+        this.cur_value = Math.floor(rand*Math.floor(score/2))+1
         this.data.actions.push(context.action);
         // console.log("rand(0~1):",rand);
         // console.log("curval:",curVal); 
-        console.log("Node.max:",this.max_value);
+        console.log('at_controller===========');
+        console.log('context:', context);
+        console.log("max:",score);
         console.log("nextVal:",this.cur_value); 
         // action:
         // {x_from:x_from, y_from:y_from,x_dest:x_dest, y_dest:y_dest, val:cur_value},
