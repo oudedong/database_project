@@ -2,7 +2,7 @@ import {getCookie} from '../../../../static/js/common.js';
 
 const csrftoken = getCookie('csrftoken');
 const logout_button = document.querySelector('#logout');
-const logout_api_url = document.querySelector('#logout_url');
+const logout_api_url = document.querySelector('#logout_url').textContent;
 
 if(logout_button){
     logout_button.addEventListener('click',async (e)=>{
