@@ -227,7 +227,10 @@ class Board{
             const edges = this.edges;
             let merge_result = undefined;
 
-            if(clicked_node.parent != undefined){
+            if(clicked_node.childs.length > 0){
+                merge_result = clicked_node.merge_with_childs();
+            }
+            else if(clicked_node.parent != undefined){
                 merge_result = clicked_node.parent.merge_with_childs();
             }
             if(merge_result != undefined){

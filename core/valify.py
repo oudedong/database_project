@@ -109,7 +109,9 @@ class Node:
             #########################
             # print('check_parent...')
             # print(f'cur: {self.x},{self.y}')
-            if (len(self.child) == 0) and (self.parent != None):
+            if len(self.child) > 0:
+                self.checkChilds()
+            elif (len(self.child) == 0) and (self.parent != None):
                 # print(f'parent: {self.parent.x},{self.parent.y}')
                 self.parent.checkChilds()
         def permutation(self, nodes, acc, cur, target, nodes_rets:list):

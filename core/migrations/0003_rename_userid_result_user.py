@@ -26,16 +26,18 @@ BEGIN
 	SELECT u.username, r.*
 	FROM core_result r
 	JOIN (
-		SELECT cr.user_id,
-			(SELECT x.id
-			FROM core_result x
-			WHERE x.user_id = cr.user_id
-			ORDER BY x.score DESC, x.time ASC, x.date DESC, x.id DESC
-			LIMIT 1) AS best_id
+		SELECT cr.user_id,(
+            	SELECT x.id
+				FROM core_result x
+				WHERE x.user_id = cr.user_id
+				ORDER BY x.score DESC, x.time ASC, x.date DESC, x.id DESC
+				LIMIT 1
+            ) AS best_id
 		FROM core_result cr
 		GROUP BY cr.user_id
 	) b ON r.id = b.best_id
-	JOIN auth_user u ON u.id = r.user_id;
+	JOIN auth_user u ON u.id = r.user_id
+    ORDER BY r.score DESC;
 END
 """
 
