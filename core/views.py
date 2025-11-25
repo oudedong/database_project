@@ -5,7 +5,7 @@ from django.urls import reverse
 from .models import Result
 from django.core.paginator import Paginator
 from django.contrib.auth.models import User
-from .valify import valify
+from .valify2 import verify_full_game_log
 import json
 import datetime
 from django.db import connection
@@ -29,14 +29,12 @@ def submit(request):
         userId = data.get('userId')
         score = data.get('score')
         time = data.get('time')
-        seed = data.get('seed')
-        actions = data.get('actions')
 
         #유저확인
         if not (request.user.is_authenticated and request.user.id == userId):
             return HttpResponse('wrong user info',status=400)
         #점수검증
-        if not valify(actions, 5, score, seed):
+        if not verify_full_game_log(data, 5):
             return HttpResponse('valification fail',status=400)
         
         #저장

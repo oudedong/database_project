@@ -76,19 +76,21 @@ WSGI_APPLICATION = 'tree_puzzle.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+#sqlite3 사용
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.sqlite3',
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+# mysql 사용, 아래를 환경에 맞게 바꿔주세요
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'mydb',
-        'USER': 'developer',
-        'PASSWORD': '1234',
-        'HOST': '172.21.176.1',  # ← 위에서 찾은 Windows IP
+        'NAME': 'mydb',          #db이름
+        'USER': 'developer',     #클라이언트이름
+        'PASSWORD': '1234',      #클라이언트 비번
+        'HOST': '172.21.176.1',  #mysql주소
         'PORT': '3306',
         'OPTIONS': {'charset': 'utf8mb4'},
     }

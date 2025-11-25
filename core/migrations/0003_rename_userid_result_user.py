@@ -16,7 +16,7 @@ BEGIN
 	SELECT auth_user.username, core_result.*
 	FROM core_result JOIN auth_user ON core_result.user_id = auth_user.id
 	WHERE date between date_st AND date_end
-    ORDER BY core_result.score DESC;
+    ORDER BY core_result.score DESC, core_result.time;
 END
 """
 PROCEDURE_get_result_by_user = """
