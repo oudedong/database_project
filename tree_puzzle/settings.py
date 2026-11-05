@@ -76,31 +76,30 @@ WSGI_APPLICATION = 'tree_puzzle.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-#sqlite3 사용
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-# mysql 사용, 아래를 환경에 맞게 바꿔주세요
+# DB_ENGINE 환경 변수로 DB를 선택합니다: sqlite(기본값) 또는 mysql
+DB_ENGINE = os.getenv("DB_ENGINE", "sqlite").lower()
 
-DB_NAME = os.getenv("DB_NAME", 'mydb')
-DB_USER = os.getenv("DB_USER", 'developer')
-DB_PASSWORD = os.getenv("DB_PASSWORD", '1234')
-DB_HOST = os.getenv("DB_HOST", '172.21.176.1')
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': DB_NAME,          #db이름
-        'USER': DB_USER,     #클라이언트이름
-        'PASSWORD': DB_PASSWORD,      #클라이언트 비번
-        'HOST': DB_HOST,  #mysql주소
-        'PORT': '3306',
-        'OPTIONS': {'charset': 'utf8mb4'},
+if DB_ENGINE == "mysql":
+    # MySQL: 리더보드를 저장 프로시저로 조회합니다
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.getenv("DB_NAME", ""),          #db이름
+            'USER': os.getenv("DB_USER", ""),          #클라이언트이름
+            'PASSWORD': os.getenv("DB_PASSWORD", ""),  #클라이언트 비번
+            'HOST': os.getenv("DB_HOST", "localhost"), #mysql주소
+            'PORT': os.getenv("DB_PORT", "3306"),
+            'OPTIONS': {'charset': 'utf8mb4'},
+        }
     }
-}
+else:
+    # SQLite: 리더보드를 Django ORM으로 조회합니다
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.getenv("SQLITE_PATH", BASE_DIR / 'db.sqlite3'),
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
