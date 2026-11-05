@@ -1,0 +1,31 @@
+
+    .board { 
+        display:grid;
+        background:#34495e; 
+        border: 2px solid black;
+        position: relative;
+    }
+    .tile  { 
+        background:#f2f2f2; 
+        border-radius:10px; 
+        display:flex; 
+        align-items:center; 
+        justify-content:center; 
+        user-select:none; 
+    }
+    .container {
+        display: flex; /* Flexbox 컨테이너로 만듭니다. */
+        flex-direction: column; /* 자식들을 세로로 쌓습니다. */
+        align-items: center; /* 모든 자식들을 가로축 중앙에 정렬합니다. */
+    }
+    .wires {
+        position: absolute;
+        inset:0;
+        pointer-events: none;
+    }
+    .wires line {
+        stroke:#c64141;
+        stroke-width: 2;
+        stroke-linecap: round;
+        opacity: 0.5;
+    }

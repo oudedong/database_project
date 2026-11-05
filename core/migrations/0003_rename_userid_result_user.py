@@ -41,20 +41,6 @@ BEGIN
 END
 """
 
-class MySQLOnlyRunSQL(migrations.RunSQL):
-    """
-    저장 프로시저는 MySQL에서만 생성합니다.
-    SQLite 등 다른 DB에서는 건너뛰고, 리더보드는 views.py의 ORM 쿼리로 조회합니다.
-    """
-    def database_forwards(self, app_label, schema_editor, from_state, to_state):
-        if schema_editor.connection.vendor == 'mysql':
-            super().database_forwards(app_label, schema_editor, from_state, to_state)
-
-    def database_backwards(self, app_label, schema_editor, from_state, to_state):
-        if schema_editor.connection.vendor == 'mysql':
-            super().database_backwards(app_label, schema_editor, from_state, to_state)
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -67,6 +53,6 @@ class Migration(migrations.Migration):
             old_name='userId',
             new_name='user',
         ),
-        MySQLOnlyRunSQL(PROCEDURE_get_result_by_range, reverse_sql="DROP PROCEDURE IF EXISTS get_result_by_range;"),
-        MySQLOnlyRunSQL(PROCEDURE_get_result_by_user, reverse_sql="DROP PROCEDURE IF EXISTS get_result_by_user;")
+        migrations.RunSQL(PROCEDURE_get_result_by_range, reverse_sql="DROP PROCEDURE IF EXISTS get_result_by_range;"),
+        migrations.RunSQL(PROCEDURE_get_result_by_user, reverse_sql="DROP PROCEDURE IF EXISTS get_result_by_user;")
     ]

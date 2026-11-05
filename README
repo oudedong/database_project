@@ -1,0 +1,4 @@
+1.requirements.txt에 필요한 패키지들이 명시되 있습니다, pip install -r requirements.txt로 모두 설치해주세요
+2.tree_puzzle/settings.py에 db연결부분을 사용하시는 환경에 맞게 바꿔줘야 합니다.
+3.바꿨다면 python manage.py migrate를 해주세요, db에 스키마를 구성해줍니다.
+4.서버실행은 python manage.py runserver

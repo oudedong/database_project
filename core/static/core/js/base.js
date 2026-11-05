@@ -16,7 +16,7 @@ if(logout_button){
             location.reload();
         }
         else{
-            const msg = await r.json() //body는 헤더하고 비동기적...
+            msg = await r.json() //body는 헤더하고 비동기적...
             alert(`failed to logout: ${msg.errors}`)
         }
     });

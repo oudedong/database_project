@@ -24,7 +24,7 @@ def logout_api(request):
     if not request.user.is_authenticated:
         return JsonResponse({'ok':False, 'errors':'already logout'}, status=400)
     logout(request)
-    return JsonResponse({'ok':True})
+    return JsonResponse({'ok':False})
 
 @require_POST
 def register_api(request):

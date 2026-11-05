@@ -9,7 +9,6 @@ from .valify2 import verify_full_game_log
 import json
 import datetime
 from django.db import connection
-from django.db.models import OuterRef, Subquery, F
 
 @require_GET
 def main(request):
@@ -54,80 +53,46 @@ def submit(request):
 def leaderboard(request):
     return render(request, 'core/leaderboard.html')
 
-# ─────────────────────────────
-# 리더보드 조회
-# MySQL이면 저장 프로시저, 그 외(SQLite 등)는 같은 결과를 내는 ORM 쿼리를 사용
-# 반환 형식: [(username, time, score, date), ...]
-# ─────────────────────────────
-def _rank_by_range(date_st, date_end):
-    if connection.vendor == 'mysql':
-        with connection.cursor() as cursor:
-            cursor.execute("CALL get_result_by_range(%s, %s)", [date_st, date_end])
-            return [(row[0], row[1], row[2], row[3]) for row in cursor.fetchall()]
-
-    # get_result_by_range와 동일: 기간 내 기록을 점수 내림차순, 같으면 시간 오름차순
-    qs = Result.objects.select_related('user')
-    if date_st is not None and date_end is not None:
-        qs = qs.filter(date__range=(date_st, date_end))
-    qs = qs.order_by('-score', 'time', 'id')
-    return [(r.user.username, r.time, r.score, r.date) for r in qs]
-
-def _rank_by_user():
-    if connection.vendor == 'mysql':
-        with connection.cursor() as cursor:
-            cursor.execute("CALL get_result_by_user()", [])
-            return [(row[0], row[1], row[2], row[3]) for row in cursor.fetchall()]
-
-    # get_result_by_user와 동일: 스칼라 상관 서브쿼리로 유저별 최고 기록 1건을 고른 뒤 점수 내림차순
-    best_id = (Result.objects
-               .filter(user=OuterRef('user'))
-               .order_by('-score', 'time', '-date', '-id')
-               .values('id')[:1])
-    qs = (Result.objects.select_related('user')
-          .annotate(best_id=Subquery(best_id))
-          .filter(id=F('best_id'))
-          .order_by('-score', 'time', 'id'))
-    return [(r.user.username, r.time, r.score, r.date) for r in qs]
-
 @require_GET
 def leaderboard_api(request):
     #페이지 크기, 번호, 날짜범위 설정
-    try:
-        page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 10))
-    except ValueError:
-        return HttpResponse('page, page_size must be integers', status=400)
-    type = request.GET.get('type', 'date_rank')
+    page = request.GET.get('page')
+    type = request.GET.get('type')
+    page_size = request.GET.get('page_size')
+    if page_size is None: page_size = 10
+    if page is None: page = 1 
+    else: page = int(page)
 
     if type == 'user_rank':
-        rows = _rank_by_user()
+        #db로 부터 유저별 순위를 불러옴(프로시저 사용)
+        with connection.cursor() as cursor:
+            cursor.execute("CALL get_result_by_user()",[])
+            paginator = Paginator(cursor.fetchall(), page_size)
     elif type == 'date_rank':
-        date_range = request.GET.get('range')
+        date_range:str = request.GET.get('range')
         date_st = None
         date_end = None
-        if date_range:
-            try:
-                date_st, date_end = date_range.split('~')
-                date_st = datetime.datetime.strptime(date_st, '%Y%m%d').date()
-                date_end = datetime.datetime.strptime(date_end, '%Y%m%d').date()
-            except ValueError:
-                return HttpResponse('range must be YYYYMMDD~YYYYMMDD', status=400)
-        rows = _rank_by_range(date_st, date_end)
-    else:
-        return HttpResponse(f'unknown type: {type}', status=400)
+        if not date_range is None:
+            date_st, date_end = date_range.split('~')
+            date_st = datetime.datetime.strptime(date_st, '%Y%m%d')
+            date_end = datetime.datetime.strptime(date_end, '%Y%m%d')
+        #db로 부터 기간내 순위를 불러옴(프로시저 사용)
+        with connection.cursor() as cursor:
+            cursor.execute("CALL get_result_by_range(%s, %s)", [date_st,date_end])
+            paginator = Paginator(cursor.fetchall(), page_size)
 
     #형식에 맞게 반환함
-    paginator = Paginator(rows, page_size)
-    page_obj = paginator.get_page(page)
+    page_obj = paginator.page(page)
     to_response = {'scores':[]}
-    for username, time, score, date in page_obj:
-        to_response['scores'].append({
-            'username': username,
-            'time'    : time,
-            'score'   : score,
-            'date'    : date,
-        })
-    to_response['page_info'] = {'prev':page_obj.has_previous(), 'next':page_obj.has_next(), 'curPage':page_obj.number, 'num_pages':paginator.num_pages}
+    for obj in page_obj:
+        temp = {
+            'username': obj[0],
+            'time'    : obj[1],
+            'score'   : obj[2],
+            'date'    : obj[3]
+        }
+        to_response['scores'].append(temp)
+    to_response['page_info'] = {'prev':page_obj.has_previous(), 'next':page_obj.has_previous(), 'curPage':page, 'num_pages':paginator.num_pages}
     return JsonResponse(to_response, safe=False)
 
 
