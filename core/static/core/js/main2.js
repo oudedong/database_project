@@ -395,6 +395,7 @@ class State_panel{
 class Controller{
     constructor(){
         this.data = {
+            session_id: null,
             userId: null,
             score : null,
             time  : null,
@@ -414,6 +415,7 @@ class Controller{
             document.querySelector('#next')
         );
 
+        this.start_url = document.querySelector('#start_url')?.textContent;
         this.submit_url = document.querySelector('#submit_url').textContent;
         this.login_check_url = document.querySelector('#account_check_url').textContent;
 
@@ -422,9 +424,16 @@ class Controller{
         this.restart_button.addEventListener('click',(e)=>{
             location.reload();
         })
+        this.session_promise = null;
+        if (this.submit_button && this.start_url){
+            this.session_promise = this.start_session();
+        }
         if (this.submit_button){
             this.submit_button.addEventListener('click', async ()=>{
                 try {
+                    if (this.session_promise) {
+                        await this.session_promise;
+                    }
                     const response = await fetch(this.submit_url,{                
                         method:'POST',
                         headers : {
@@ -435,7 +444,7 @@ class Controller{
                     });
                     if(response.ok){
                         alert('submit success!')
-                        submit.disabled = true;
+                        this.submit_button.disabled = true;
                     }
                     else{
                         let m = await response.text();
@@ -445,6 +454,22 @@ class Controller{
                     alert('server not response');
                 }
             });
+        }
+    }
+    async start_session(){
+        try {
+            const response = await fetch(this.start_url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+            });
+            if (response.ok) {
+                const payload = await response.json();
+                this.data.session_id = payload.session_id;
+            }
+        } catch (error) {
+            console.error('failed to start game session:', error);
         }
     }
     async go_next_round(context){

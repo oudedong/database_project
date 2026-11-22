@@ -6,6 +6,7 @@
 {% endblock %}
 {% block title %}tree_puzzle{% endblock %}
 {% block content %}
+<p hidden id="start_url">{% url 'core:api:start' %}</p>
 <p hidden id="submit_url">{% url 'core:api:submit' %}</p>
 <p hidden id="account_check_url">{% url 'accounts:api:check_status' %}</p>
 <div class="d-flex flex-column align-items-center p-2 gap-3">

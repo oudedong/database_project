@@ -10,3 +10,8 @@ __pycache__/
 
 #env
 .env
+
+#agent
+AGENTS.md
+.agents/skills/
+docs/

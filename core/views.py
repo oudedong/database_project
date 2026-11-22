@@ -2,53 +2,84 @@ from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
 from django.views.decorators.http import require_GET, require_POST
 from django.urls import reverse
-from .models import Result
+from .models import Result, GameSession
 from django.core.paginator import Paginator
 from django.contrib.auth.models import User
 from .valify2 import verify_full_game_log
 import json
 import datetime
-from django.db import connection
+import uuid
+from django.db import connection, transaction
 from django.db.models import OuterRef, Subquery, F
+from django.utils import timezone
 
 @require_GET
 def main(request):
     return render(request, 'core/main.html')
 
 @require_POST
+def start_game(request):
+    """새 게임 세션을 시작하고 기존 미제출 세션을 정리한다."""
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False, 'error': 'authentication required'}, status=401)
+
+    with transaction.atomic():
+        GameSession.objects.filter(user=request.user, submitted_at__isnull=True).delete()
+        session = GameSession.objects.create(user=request.user)
+
+    return JsonResponse({'ok': True, 'session_id': str(session.id)})
+
+@require_POST
 def submit(request):
+    if not request.user.is_authenticated:
+        return HttpResponse('authentication required', status=401)
+
     try:
         data = json.loads(request.body)
-        requires = ['userId','score', 'time', 'actions','seed']
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return HttpResponse('invalid json', status=400)
 
-        #데이터 다 있나 확인
-        for key in requires:
-            temp = data.get(key)
-            if temp is None:
-                return HttpResponse(f'field {key} is missing...',status=400)
-        
-        userId = data.get('userId')
-        score = data.get('score')
-        time = data.get('time')
+    if not isinstance(data, dict):
+        return HttpResponse('invalid payload', status=400)
 
-        #유저확인
-        if not (request.user.is_authenticated and request.user.id == userId):
-            return HttpResponse('wrong user info',status=400)
-        #점수검증
+    requires = ['session_id', 'score', 'actions', 'seed']
+    for key in requires:
+        if data.get(key) is None:
+            return HttpResponse(f'field {key} is missing...', status=400)
+
+    try:
+        session_uuid = uuid.UUID(str(data.get('session_id')))
+    except (ValueError, TypeError, AttributeError):
+        return HttpResponse('invalid session_id', status=400)
+
+    with transaction.atomic():
+        session = (
+            GameSession.objects
+            .select_for_update()
+            .filter(id=session_uuid, user=request.user)
+            .first()
+        )
+        if session is None:
+            return HttpResponse('session not found', status=404)
+
+        if session.submitted_at is not None:
+            return HttpResponse('already submitted', status=409)
+
         if not verify_full_game_log(data, 5):
-            return HttpResponse('valification fail',status=400)
-        
-        #저장
-        game = Result()
-        game.user = User.objects.get(id=userId)
-        game.score = score
-        game.time = time
-        game.save()
+            return HttpResponse('valification fail', status=400)
 
-        return HttpResponse('succeed to save',status=200)
+        now = timezone.now()
+        elapsed_seconds = max(0, int((now - session.started_at).total_seconds()))
+        game = Result.objects.create(
+            user=request.user,
+            score=int(data['score']),
+            time=elapsed_seconds,
+        )
+        session.submitted_at = now
+        session.result = game
+        session.save(update_fields=['submitted_at', 'result'])
 
-    except Exception as e:
-        return HttpResponse(f'{e}',status=400)
+    return HttpResponse('succeed to save', status=200)
 
 @require_GET
 def leaderboard(request):
