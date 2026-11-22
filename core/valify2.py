@@ -53,47 +53,39 @@ class Rng:
 @dataclass
 class NodeSim:
     value: Optional[int] = None
-    parent: Optional["NodeSim"] = None
-    children: List["NodeSim"] = field(default_factory=list)
+    neighbors: List["NodeSim"] = field(default_factory=list)
 
     def is_empty(self) -> bool:
         return self.value is None
 
     def reset_node(self) -> None:
-        """
-        JS: Node_v2.reset_node()
-        - value = undefined
-        - status = EMPTY
-        - parent = undefined
-        - childs는 건드리지 않음 (JS도 리스트는 건드리지 않음)
-        """
+        """노드를 비우고 연결된 무방향 간선을 양쪽에서 제거한다."""
         self.value = None
-        self.parent = None
+        for nb in self.neighbors:
+            nb.neighbors = [x for x in nb.neighbors if x is not self]
+        self.neighbors = []
 
-    def append_child(self, child: "NodeSim") -> None:
-        self.children.append(child)
-        child.parent = self
+    def connect(self, other: "NodeSim") -> None:
+        """두 노드 사이에 무방향 간선을 추가한다."""
+        self.neighbors.append(other)
+        other.neighbors.append(self)
 
-    def merge_with_childs(self) -> Optional[Dict[str, int]]:
+    def merge_from_leaves(self) -> Optional[Dict[str, int]]:
         """
-        JS: Node_v2.merge_with_childs()를 거의 그대로 포팅.
-        possibles: leaf children (children.length <= 0) 중 비어있지 않은 것들
-        subset-sum으로 self.value(현재 값)를 만들 수 있는 leaf들의 조합을 찾고,
-        찾으면 그 leaf들을 비우고, 자기 value를 두 배로 만들고, 부모로 재귀.
+        무방향 트리에서 끝쪽(차수 1) 이웃들의 부분합이 self.value와 같으면 합친다.
+        합친 뒤 자신도 끝쪽(차수 1)이 되면 유일한 이웃으로 연쇄 머지를 시도한다.
         """
         if self.is_empty():
             return None
 
-        # leaf children만 후보
-        possibles: List[NodeSim] = []
-        for ch in self.children:
-            if len(ch.children) == 0 and not ch.is_empty():
-                possibles.append(ch)
-
+        possibles: List[NodeSim] = [
+            nb for nb in self.neighbors
+            if len(nb.neighbors) == 1 and not nb.is_empty()
+        ]
         if not possibles:
             return None
 
-        target_sum = self.value  # JS도 현재 value를 target으로 씀
+        target_sum = self.value
         found_nodes: List[NodeSim] = []
 
         def dfs(cur_index: int, acc: int) -> bool:
@@ -102,48 +94,34 @@ class NodeSim:
             if cur_index >= len(possibles):
                 return False
             if acc > target_sum:
-                return False  # 양수 값만 있다고 가정
+                return False
 
-            # 포함
             found_nodes.append(possibles[cur_index])
             if dfs(cur_index + 1, acc + possibles[cur_index].value):
                 return True
-            # 제외
             found_nodes.pop()
             if dfs(cur_index + 1, acc):
                 return True
             return False
 
-        ok = dfs(0, 0)
-        if not ok:
+        if not dfs(0, 0):
             return None
 
         max_value = 0
-
-        # 자기 값 두 배
         self.value *= 2
         if self.value > max_value:
             max_value = self.value
 
-        # subset에 사용된 leaf들은 reset_node()
         for n in found_nodes:
             n.reset_node()
-
-        # 비어 있는 child 제거
-        new_children: List[NodeSim] = []
-        for ch in self.children:
-            if not ch.is_empty():
-                new_children.append(ch)
-        self.children = new_children
 
         result = {
             "max_value": max_value,
             "cnt_merge": len(found_nodes),
         }
 
-        # 부모로 재귀
-        if self.parent is not None:
-            temp = self.parent.merge_with_childs()
+        if len(self.neighbors) == 1:
+            temp = self.neighbors[0].merge_from_leaves()
             if temp is not None:
                 result["max_value"] = max(result["max_value"], temp["max_value"])
                 result["cnt_merge"] += temp["cnt_merge"]
@@ -187,15 +165,14 @@ class GameSimulator:
     def _postprocess_after_click(self, clicked: NodeSim) -> None:
         """
         JS의 Board.clicked() 안에 있는 postprocess()와 동일한 역할.
-        - clicked.childs.length > 0 이면, clicked.merge_with_childs()
-        - 아니면, clicked.parent != undefined 이면 parent.merge_with_childs()
-        - merge 결과에 따라 cnt_empty, max_value 갱신
+        - clicked가 끝쪽(차수 1)이면 유일한 이웃에서 merge_from_leaves() 시도
+        - clicked가 내부 노드(차수 > 1)이면 clicked 자신에서 merge_from_leaves() 시도
         """
         merge_result = None
-        if clicked.children:
-            merge_result = clicked.merge_with_childs()
-        elif clicked.parent is not None:
-            merge_result = clicked.parent.merge_with_childs()
+        if len(clicked.neighbors) == 1:
+            merge_result = clicked.neighbors[0].merge_from_leaves()
+        elif len(clicked.neighbors) > 1:
+            merge_result = clicked.merge_from_leaves()
 
         if merge_result is not None:
             self.board.cnt_empty += merge_result["cnt_merge"]
@@ -244,8 +221,9 @@ class GameSimulator:
 
             # JS: clicked_node.add_value(this.cur_value);
             dest.value += self.cur_value
+            self.board.max_value = max(self.board.max_value, dest.value)
 
-            # JS: postprocess() -> merge_with_childs()
+            # JS: postprocess()
             self._postprocess_after_click(dest)
 
         # 2-2. 인접 칸에 새 값 두는 경우
@@ -272,8 +250,8 @@ class GameSimulator:
             self.board.cnt_empty -= 1
             dest.value = self.cur_value
 
-            # JS: last_clicked_node.append_child(clicked_node);
-            src.append_child(dest)
+            # JS: last_clicked_node.connect(clicked_node);
+            src.connect(dest)
 
             # JS: postprocess() 에서 dest 기준으로 merge
             self._postprocess_after_click(dest)

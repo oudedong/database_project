@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from .models import GameSession, Result
-from .valify2 import MAX_ACTIONS, verify_full_game_log
+from .valify2 import MAX_ACTIONS, GameSimulator, NodeSim, Rng, verify_full_game_log
 
 
 def build_valid_actions() -> list[dict]:
@@ -48,8 +48,24 @@ class VerifyFullGameLogTests(TestCase):
         payload = build_valid_game_payload()
         self.assertTrue(verify_full_game_log(payload, board_size=5))
 
-    def test_same_value_add_passes(self):
+    def test_same_value_add_updates_max_value(self):
         payload = {
+            'seed': 7,
+            'score': 2,
+            'actions': [
+                {
+                    'x_from': -1,
+                    'y_from': -1,
+                    'x_dest': 0,
+                    'y_dest': 0,
+                    'val': 1,
+                    'max_value': 2,
+                },
+            ],
+        }
+        self.assertTrue(verify_full_game_log(payload, board_size=5))
+
+        stale_max = {
             'seed': 7,
             'score': 1,
             'actions': [
@@ -63,7 +79,48 @@ class VerifyFullGameLogTests(TestCase):
                 },
             ],
         }
-        self.assertTrue(verify_full_game_log(payload, board_size=5))
+        self.assertFalse(verify_full_game_log(stale_max, board_size=5))
+
+    def test_undirected_reverse_and_cascading_merge(self):
+        """끝쪽 루트가 자식 방향으로 합쳐지고 연쇄 머지까지 일어나는지 검증."""
+        sim = GameSimulator(seed=1, board_size=5)
+        n0 = sim.board.node(0, 0)  # val=1
+        n1 = sim.board.node(1, 0)
+        n2 = sim.board.node(2, 0)
+        n1.value = 2
+        n2.value = 4
+        n0.connect(n1)
+        n1.connect(n2)
+        sim.board.cnt_empty -= 2
+        sim.board.max_value = 4
+
+        # (0,0)에 same-value add(1) -> (0,0)=2 -> (1,0)=4 -> (2,0)=8 연쇄 머지
+        sim.step({'x_from': -1, 'y_from': -1, 'x_dest': 0, 'y_dest': 0, 'val': 1, 'max_value': 8})
+        self.assertTrue(n0.is_empty())
+        self.assertTrue(n1.is_empty())
+        self.assertEqual(n2.value, 8)
+        self.assertEqual(n2.neighbors, [])
+        self.assertEqual(sim.board.max_value, 8)
+
+    def test_internal_node_is_not_absorbed_preventing_disconnection(self):
+        """차수 >= 2인 중간 노드는 끝쪽 노드에 의해 흡수되지 않아 그래프가 끊기지 않는다."""
+        n0 = NodeSim(value=2)
+        n1 = NodeSim(value=2)
+        n2 = NodeSim(value=2)
+        n0.connect(n1)
+        n1.connect(n2)
+
+        # 끝쪽 n0에서 머지를 시도해도 n1은 차수가 2이므로 흡수되지 않아야 함
+        self.assertIsNone(n0.merge_from_leaves())
+        self.assertEqual(n1.value, 2)
+        self.assertEqual(len(n1.neighbors), 2)
+
+        # 반면 중간 노드 n1은 끝쪽 n0(또는 n2)를 흡수해 (n1=4 — n2=2)로 연결을 유지함
+        res = n1.merge_from_leaves()
+        self.assertIsNotNone(res)
+        self.assertEqual(n1.value, 4)
+        self.assertEqual(n1.neighbors, [n2])
+        self.assertEqual(n2.neighbors, [n1])
 
     def test_empty_actions_or_missing_field_or_exceed_max_actions_fails(self):
         self.assertFalse(verify_full_game_log({'seed': 1, 'score': 1, 'actions': []}, 5))

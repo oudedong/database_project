@@ -8,29 +8,30 @@ class Node_v2{
         ON   : 2, //활성화+값없음
     };
 
-   constructor(div, value=undefined, parent=undefined){
+   constructor(div, board_index, value=undefined){
         this.value  = value;
-        this.childs  = [];
-        this.parent = parent;
-        this.div = div
+        this.neighbors = [];
+        this.board_index = board_index;
+        this.div = div;
         if(value){
             this.status = Node_v2.STATUS.OFF;
         } else{
             this.status = Node_v2.STATUS.EMPTY;
         }
     }
-    append_child(node){
-        this.childs.push(node);
-        node.parent = this;
+    connect(node){
+        this.neighbors.push(node);
+        node.neighbors.push(this);
     }
-    merge_with_childs(){
-        
+    merge_from_leaves(){
         let possibles = [];
-        for(let i = 0; i < this.childs.length; i++){
-            if(this.childs[i].childs.length <= 0){
-                possibles.push(this.childs[i]);
+        for(let i = 0; i < this.neighbors.length; i++){
+            const nb = this.neighbors[i];
+            if(nb.neighbors.length === 1 && nb.status !== Node_v2.STATUS.EMPTY){
+                possibles.push(nb);
             }
         }
+        if(possibles.length === 0) return;
 
         const permutation = (possibles, accumulate, cur_index, target_sum, found_nodes)=>{
             if(accumulate === target_sum)
@@ -43,17 +44,18 @@ class Node_v2{
             let result = false;
 
             found_nodes.push(possibles[cur_index]);
-            result = permutation(possibles, accumulate+possibles[cur_index].value, cur_index+1, target_sum, found_nodes)
-            if(result)return true;
+            result = permutation(possibles, accumulate+possibles[cur_index].value, cur_index+1, target_sum, found_nodes);
+            if(result) return true;
             found_nodes.pop();
-            result = permutation(possibles, accumulate, cur_index+1, target_sum, found_nodes)
+            result = permutation(possibles, accumulate, cur_index+1, target_sum, found_nodes);
             return result;
-        }
+        };
 
         let max_value = 0;
         let found_nodes = [];
-        let result = permutation(possibles, 0, 0, this.value, found_nodes);
-        if(!result) return; //실패
+        let ok = permutation(possibles, 0, 0, this.value, found_nodes);
+        if(!ok) return;
+
         this.value *= 2;
         this.div.textContent = this.value;
         if(this.value > max_value)
@@ -61,30 +63,19 @@ class Node_v2{
         for(let i = 0; i < found_nodes.length; i++){
             found_nodes[i].reset_node();
         }
-        
-        let new_childs = [];
-        for(let i = 0; i < this.childs.length; i++){
-            if(this.childs[i].status != Node_v2.STATUS.EMPTY){
-                new_childs.push(this.childs[i]);
-            }
-        }
-        this.childs = new_childs;
-        
-        result = {
+
+        let result = {
             max_value: max_value,
             cnt_merge: found_nodes.length
         };
 
-        if(this.parent != undefined){
-            let temp = this.parent.merge_with_childs();
-            console.log('parents_merge_ret:',temp);
+        if(this.neighbors.length === 1){
+            let temp = this.neighbors[0].merge_from_leaves();
             if(temp != undefined){
-                console.log('gathered');
                 result.max_value = Math.max(result.max_value, temp.max_value);
                 result.cnt_merge += temp.cnt_merge;
             }
         }
-        console.log('my_merge_ret:',result);
         return result;
     }
     reset_node(){
@@ -92,7 +83,11 @@ class Node_v2{
         this.status = Node_v2.STATUS.EMPTY;
         this.div.textContent = this.value;
         this.div.style.background = '#7f8c8d';
-        this.parent = undefined;
+        for(let i = 0; i < this.neighbors.length; i++){
+            const nb = this.neighbors[i];
+            nb.neighbors = nb.neighbors.filter((x) => x !== this);
+        }
+        this.neighbors = [];
     }
     on_node(){
         if(this.status!=Node_v2.STATUS.EMPTY){
@@ -208,7 +203,7 @@ class Board{
                 })
                 this.element_board.appendChild(div);
 
-                let temp_node = new Node_v2(div);
+                let temp_node = new Node_v2(div, i * board_size + j);
                 temp_node.reset_node();
 
                 this.nodes[i].push(temp_node);
@@ -227,11 +222,11 @@ class Board{
             const edges = this.edges;
             let merge_result = undefined;
 
-            if(clicked_node.childs.length > 0){
-                merge_result = clicked_node.merge_with_childs();
+            if(clicked_node.neighbors.length === 1){
+                merge_result = clicked_node.neighbors[0].merge_from_leaves();
             }
-            else if(clicked_node.parent != undefined){
-                merge_result = clicked_node.parent.merge_with_childs();
+            else if(clicked_node.neighbors.length > 1){
+                merge_result = clicked_node.merge_from_leaves();
             }
             if(merge_result != undefined){
                 this.cnt_empty += merge_result.cnt_merge;
@@ -272,16 +267,17 @@ class Board{
                 ln.setAttribute('y1', node_from_pos.y);
                 ln.setAttribute('x2', node_to_pos.x);
                 ln.setAttribute('y2', node_to_pos.y);
-                ln.setAttribute('marker-end', 'url(#arrowhead)');
                 edges.appendChild(ln);
             }
             while (edges.firstChild) edges.removeChild(edges.firstChild);
             for(let i = 0; i < this.board_size; i++){
                 for(let j = 0; j < this.board_size; j++){
                     const st_node = this.nodes[i][j];
-                    for(let k = 0; k < st_node.childs.length; k++){
-                        const dest_node = st_node.childs[k];
-                        drawline(st_node, dest_node);
+                    for(let k = 0; k < st_node.neighbors.length; k++){
+                        const dest_node = st_node.neighbors[k];
+                        if(st_node.board_index < dest_node.board_index){
+                            drawline(st_node, dest_node);
+                        }
                     }
                 }
             }
@@ -318,6 +314,7 @@ class Board{
         if(clicked_node.value == this.cur_value){
             console.log('clicked_1');
             clicked_node.add_value(this.cur_value);
+            this.max_value = Math.max(this.max_value, clicked_node.value);
             reset_temp_context();
             postprocess();
             go_next_round(-1, -1, x, y, this.cur_value);
@@ -351,7 +348,7 @@ class Board{
             console.log('clicked_3');
             this.cnt_empty -= 1;//노드한칸 차지...
             clicked_node.activate_node(this.cur_value);
-            this.temp_context.last_clicked_node.append_child(clicked_node);
+            this.temp_context.last_clicked_node.connect(clicked_node);
             this.temp_context.last_clicked_node = undefined;
 
             const last_clicked_x = this.temp_context.last_clicked_x;
