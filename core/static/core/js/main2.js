@@ -24,50 +24,57 @@ class Node_v2{
         node.neighbors.push(this);
     }
     merge_from_leaves(){
-        let possibles = [];
-        for(let i = 0; i < this.neighbors.length; i++){
-            const nb = this.neighbors[i];
-            if(nb.neighbors.length === 1 && nb.status !== Node_v2.STATUS.EMPTY){
-                possibles.push(nb);
-            }
-        }
-        if(possibles.length === 0) return;
-
-        const permutation = (possibles, accumulate, cur_index, target_sum, found_nodes)=>{
-            if(accumulate === target_sum)
-                return true;
-            if(cur_index >= possibles.length)
-                return false;
-            if(accumulate > target_sum)
-                return false;
-
-            let result = false;
-
-            found_nodes.push(possibles[cur_index]);
-            result = permutation(possibles, accumulate+possibles[cur_index].value, cur_index+1, target_sum, found_nodes);
-            if(result) return true;
-            found_nodes.pop();
-            result = permutation(possibles, accumulate, cur_index+1, target_sum, found_nodes);
-            return result;
-        };
-
         let max_value = 0;
-        let found_nodes = [];
-        let ok = permutation(possibles, 0, 0, this.value, found_nodes);
-        if(!ok) return;
+        let cnt_merge = 0;
 
-        this.value *= 2;
-        this.div.textContent = this.value;
-        this._sync_visual();
-        if(this.value > max_value)
-            max_value = this.value;
-        for(let i = 0; i < found_nodes.length; i++){
-            found_nodes[i].reset_node();
+        while(true){
+            let possibles = [];
+            for(let i = 0; i < this.neighbors.length; i++){
+                const nb = this.neighbors[i];
+                if(nb.neighbors.length === 1 && nb.status !== Node_v2.STATUS.EMPTY){
+                    possibles.push(nb);
+                }
+            }
+            if(possibles.length === 0) break;
+
+            const permutation = (possibles, accumulate, cur_index, target_sum, found_nodes)=>{
+                if(accumulate === target_sum)
+                    return true;
+                if(cur_index >= possibles.length)
+                    return false;
+                if(accumulate > target_sum)
+                    return false;
+
+                let result = false;
+
+                found_nodes.push(possibles[cur_index]);
+                result = permutation(possibles, accumulate+possibles[cur_index].value, cur_index+1, target_sum, found_nodes);
+                if(result) return true;
+                found_nodes.pop();
+                result = permutation(possibles, accumulate, cur_index+1, target_sum, found_nodes);
+                return result;
+            };
+
+            let found_nodes = [];
+            let ok = permutation(possibles, 0, 0, this.value, found_nodes);
+            if(!ok) break;
+
+            this.value *= 2;
+            this._sync_visual();
+            if(this.value > max_value)
+                max_value = this.value;
+            for(let i = 0; i < found_nodes.length; i++){
+                found_nodes[i].reset_node();
+            }
+            cnt_merge += found_nodes.length;
+            if(this.neighbors.length <= 1) break;
         }
+
+        if(cnt_merge === 0) return;
 
         let result = {
             max_value: max_value,
-            cnt_merge: found_nodes.length
+            cnt_merge: cnt_merge
         };
 
         if(this.neighbors.length === 1){

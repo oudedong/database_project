@@ -73,51 +73,61 @@ class NodeSim:
     def merge_from_leaves(self) -> Optional[Dict[str, int]]:
         """
         무방향 트리에서 끝쪽(차수 1) 이웃들의 부분합이 self.value와 같으면 합친다.
-        합친 뒤 자신도 끝쪽(차수 1)이 되면 유일한 이웃으로 연쇄 머지를 시도한다.
+        값이 2배가 된 뒤에도 남은 끝쪽 이웃과 추가 합치기가 가능하면 반복(cascade)하며,
+        최종적으로 자신도 끝쪽(차수 1)이 되면 유일한 이웃으로 연쇄 머지를 시도한다.
         """
         if self.is_empty():
             return None
 
-        possibles: List[NodeSim] = [
-            nb for nb in self.neighbors
-            if len(nb.neighbors) == 1 and not nb.is_empty()
-        ]
-        if not possibles:
-            return None
-
-        target_sum = self.value
-        found_nodes: List[NodeSim] = []
-
-        def dfs(cur_index: int, acc: int) -> bool:
-            if acc == target_sum:
-                return True
-            if cur_index >= len(possibles):
-                return False
-            if acc > target_sum:
-                return False
-
-            found_nodes.append(possibles[cur_index])
-            if dfs(cur_index + 1, acc + possibles[cur_index].value):
-                return True
-            found_nodes.pop()
-            if dfs(cur_index + 1, acc):
-                return True
-            return False
-
-        if not dfs(0, 0):
-            return None
-
         max_value = 0
-        self.value *= 2
-        if self.value > max_value:
-            max_value = self.value
+        cnt_merge = 0
 
-        for n in found_nodes:
-            n.reset_node()
+        while True:
+            possibles: List[NodeSim] = [
+                nb for nb in self.neighbors
+                if len(nb.neighbors) == 1 and not nb.is_empty()
+            ]
+            if not possibles:
+                break
+
+            target_sum = self.value
+            found_nodes: List[NodeSim] = []
+
+            def dfs(cur_index: int, acc: int) -> bool:
+                if acc == target_sum:
+                    return True
+                if cur_index >= len(possibles):
+                    return False
+                if acc > target_sum:
+                    return False
+
+                found_nodes.append(possibles[cur_index])
+                if dfs(cur_index + 1, acc + possibles[cur_index].value):
+                    return True
+                found_nodes.pop()
+                if dfs(cur_index + 1, acc):
+                    return True
+                return False
+
+            if not dfs(0, 0):
+                break
+
+            self.value *= 2
+            if self.value > max_value:
+                max_value = self.value
+
+            for n in found_nodes:
+                n.reset_node()
+            cnt_merge += len(found_nodes)
+            if len(self.neighbors) <= 1:
+                break
+
+        if cnt_merge == 0:
+            return None
 
         result = {
             "max_value": max_value,
-            "cnt_merge": len(found_nodes),
+            "cnt_merge": cnt_merge,
         }
 
         if len(self.neighbors) == 1:

@@ -122,6 +122,26 @@ class VerifyFullGameLogTests(TestCase):
         self.assertEqual(n1.neighbors, [n2])
         self.assertEqual(n2.neighbors, [n1])
 
+    def test_node_cascades_with_remaining_leaf_neighbors_after_doubling(self):
+        """중심 노드가 2배가 된 뒤에도 남은 끝쪽 이웃과 연쇄 머지되어야 한다."""
+        center = NodeSim(value=4)
+        root = NodeSim(value=512)
+        leaf_4 = NodeSim(value=4)
+        leaf_8 = NodeSim(value=8)
+        center.connect(root)
+        center.connect(leaf_4)
+        center.connect(leaf_8)
+
+        # 4 + 4 -> 8, 이어서 남은 8과 연쇄 머지 -> 16!
+        res = center.merge_from_leaves()
+        self.assertIsNotNone(res)
+        self.assertEqual(center.value, 16)
+        self.assertEqual(res['cnt_merge'], 2)
+        self.assertEqual(res['max_value'], 16)
+        self.assertTrue(leaf_4.is_empty())
+        self.assertTrue(leaf_8.is_empty())
+        self.assertEqual(center.neighbors, [root])
+
     def test_next_cur_value_is_always_power_of_two(self):
         """score 값에 관계없이 다음 cur_value는 항상 2^k <= max(1, score // 2)여야 한다."""
         self.assertEqual(GameSimulator(seed=1, board_size=5).cur_value, 1)
