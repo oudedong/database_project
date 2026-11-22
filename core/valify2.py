@@ -301,6 +301,9 @@ class GameSimulator:
 # -----------------------------------------
 
 
+MAX_ACTIONS = 1000
+
+
 def verify_full_game_log(payload: Dict[str, Any], board_size: int = 5) -> bool:
     """
     클라이언트에서 온 전체 게임 로그를 '완전 검증'한다.
@@ -347,13 +350,12 @@ def verify_full_game_log(payload: Dict[str, Any], board_size: int = 5) -> bool:
     except (TypeError, ValueError):
         return False
 
-    actions = payload["actions"]
-    if not isinstance(actions, list) or len(actions) == 0:
+    if reported_final_score < 1:
         return False
 
-    # 너무 긴 로그는 거절 (선택)
-    # if len(actions) > 10_000:
-    #     return False
+    actions = payload["actions"]
+    if not isinstance(actions, list) or len(actions) == 0 or len(actions) > MAX_ACTIONS:
+        return False
 
     sim = GameSimulator(seed, board_size=board_size)
 

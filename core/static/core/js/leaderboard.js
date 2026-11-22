@@ -188,10 +188,12 @@ async function get_page(page, detail, page_size=10){
     console.log(url);
     const response = await fetch(url);
     if(!response.ok){
-        let error_msg = await response.text();
-        alert(`failed to get leaderboard...: ${error_msg}`)
+        let err = await response.json();
+        alert(`failed to get leaderboard...: ${err.error}`);
+        return { scores: [], page_info: { prev: false, next: false, curPage: 1, num_pages: 1 } };
     }
-    return response.json();
+    const payload = await response.json();
+    return payload.data;
 }
 function dateToYMDString(date){
     console.log('at dateToYMDString:',date);

@@ -8,10 +8,12 @@ from django.contrib.auth.models import User
 from .valify2 import verify_full_game_log
 import json
 import datetime
+import secrets
 import uuid
 from django.db import connection, transaction
 from django.db.models import OuterRef, Subquery, F
 from django.utils import timezone
+from tree_puzzle.api_utils import api_success, api_error
 
 @require_GET
 def main(request):
@@ -19,38 +21,39 @@ def main(request):
 
 @require_POST
 def start_game(request):
-    """새 게임 세션을 시작하고 기존 미제출 세션을 정리한다."""
+    """새 게임 세션을 시작하고 서버에서 난수 시드를 발급한다."""
     if not request.user.is_authenticated:
-        return JsonResponse({'ok': False, 'error': 'authentication required'}, status=401)
+        return api_error('authentication required', status=401)
 
+    seed = secrets.randbelow(1_000_000)
     with transaction.atomic():
         GameSession.objects.filter(user=request.user, submitted_at__isnull=True).delete()
-        session = GameSession.objects.create(user=request.user)
+        session = GameSession.objects.create(user=request.user, seed=seed)
 
-    return JsonResponse({'ok': True, 'session_id': str(session.id)})
+    return api_success({'session_id': str(session.id), 'seed': session.seed})
 
 @require_POST
 def submit(request):
     if not request.user.is_authenticated:
-        return HttpResponse('authentication required', status=401)
+        return api_error('authentication required', status=401)
 
     try:
         data = json.loads(request.body)
     except (json.JSONDecodeError, TypeError, ValueError):
-        return HttpResponse('invalid json', status=400)
+        return api_error('invalid json', status=400)
 
     if not isinstance(data, dict):
-        return HttpResponse('invalid payload', status=400)
+        return api_error('invalid payload', status=400)
 
-    requires = ['session_id', 'score', 'actions', 'seed']
+    requires = ['session_id', 'score', 'actions']
     for key in requires:
         if data.get(key) is None:
-            return HttpResponse(f'field {key} is missing...', status=400)
+            return api_error(f'field {key} is missing...', status=400)
 
     try:
         session_uuid = uuid.UUID(str(data.get('session_id')))
     except (ValueError, TypeError, AttributeError):
-        return HttpResponse('invalid session_id', status=400)
+        return api_error('invalid session_id', status=400)
 
     with transaction.atomic():
         session = (
@@ -60,13 +63,18 @@ def submit(request):
             .first()
         )
         if session is None:
-            return HttpResponse('session not found', status=404)
+            return api_error('session not found', status=404)
 
         if session.submitted_at is not None:
-            return HttpResponse('already submitted', status=409)
+            return api_error('already submitted', status=409)
 
-        if not verify_full_game_log(data, 5):
-            return HttpResponse('valification fail', status=400)
+        verify_payload = {
+            'seed': session.seed,
+            'score': data.get('score'),
+            'actions': data.get('actions'),
+        }
+        if not verify_full_game_log(verify_payload, 5):
+            return api_error('valification fail', status=400)
 
         now = timezone.now()
         elapsed_seconds = max(0, int((now - session.started_at).total_seconds()))
@@ -79,7 +87,7 @@ def submit(request):
         session.result = game
         session.save(update_fields=['submitted_at', 'result'])
 
-    return HttpResponse('succeed to save', status=200)
+    return api_success({'score': game.score, 'time': game.time})
 
 @require_GET
 def leaderboard(request):
@@ -127,7 +135,13 @@ def leaderboard_api(request):
         page = int(request.GET.get('page', 1))
         page_size = int(request.GET.get('page_size', 10))
     except ValueError:
-        return HttpResponse('page, page_size must be integers', status=400)
+        return api_error('page, page_size must be integers', status=400)
+
+    if page < 1:
+        return api_error('page must be >= 1', status=400)
+    if not (1 <= page_size <= 100):
+        return api_error('page_size must be between 1 and 100', status=400)
+
     type = request.GET.get('type', 'date_rank')
 
     if type == 'user_rank':
@@ -142,24 +156,30 @@ def leaderboard_api(request):
                 date_st = datetime.datetime.strptime(date_st, '%Y%m%d').date()
                 date_end = datetime.datetime.strptime(date_end, '%Y%m%d').date()
             except ValueError:
-                return HttpResponse('range must be YYYYMMDD~YYYYMMDD', status=400)
+                return api_error('range must be YYYYMMDD~YYYYMMDD', status=400)
         rows = _rank_by_range(date_st, date_end)
     else:
-        return HttpResponse(f'unknown type: {type}', status=400)
+        return api_error(f'unknown type: {type}', status=400)
 
     #형식에 맞게 반환함
     paginator = Paginator(rows, page_size)
     page_obj = paginator.get_page(page)
-    to_response = {'scores':[]}
-    for username, time, score, date in page_obj:
-        to_response['scores'].append({
+    scores = [
+        {
             'username': username,
-            'time'    : time,
-            'score'   : score,
-            'date'    : date,
-        })
-    to_response['page_info'] = {'prev':page_obj.has_previous(), 'next':page_obj.has_next(), 'curPage':page_obj.number, 'num_pages':paginator.num_pages}
-    return JsonResponse(to_response, safe=False)
+            'time': time,
+            'score': score,
+            'date': date,
+        }
+        for username, time, score, date in page_obj
+    ]
+    page_info = {
+        'prev': page_obj.has_previous(),
+        'next': page_obj.has_next(),
+        'curPage': page_obj.number,
+        'num_pages': paginator.num_pages,
+    }
+    return api_success({'scores': scores, 'page_info': page_info})
 
 
 

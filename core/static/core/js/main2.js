@@ -396,13 +396,10 @@ class Controller{
     constructor(){
         this.data = {
             session_id: null,
-            userId: null,
             score : null,
-            time  : null,
             actions:[],
-            seed  : Math.floor(Math.random()*1000000)
         };
-        this.rng = new Rng(this.data.seed);
+        this.rng = new Rng(Math.floor(Math.random()*1000000));
         this.cur_value = 1;
         this.board = new Board(
             this,
@@ -447,8 +444,8 @@ class Controller{
                         this.submit_button.disabled = true;
                     }
                     else{
-                        let m = await response.text();
-                        alert(`submit failed:${m}`);
+                        let m = await response.json();
+                        alert(`submit failed: ${m.error}`);
                     }
                 } catch (error) {
                     alert('server not response');
@@ -466,13 +463,18 @@ class Controller{
             });
             if (response.ok) {
                 const payload = await response.json();
-                this.data.session_id = payload.session_id;
+                this.data.session_id = payload.data.session_id;
+                this.rng = new Rng(payload.data.seed);
             }
         } catch (error) {
             console.error('failed to start game session:', error);
         }
     }
     async go_next_round(context){
+        if (this.session_promise) {
+            await this.session_promise;
+            this.session_promise = null;
+        }
 
         let score = context.max_value;
         let rand = this.rng.random();
@@ -495,11 +497,6 @@ class Controller{
                 this.submit_button.disabled = false;
             this.state_panel.end();
             this.data.score = score;
-            this.data.time = this.state_panel.get_result().time_len; 
-            let user = await fetch(this.login_check_url); 
-            user = await user.json(); 
-            user = user.user;
-            this.data.userId = user==null ? null : user.id;
             alert('game over');
         }
     }
