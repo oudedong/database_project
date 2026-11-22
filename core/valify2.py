@@ -263,12 +263,15 @@ class GameSimulator:
                 f"reported={reported_action_max}"
             )
 
-        # 4. 다음 턴의 cur_value를 RNG로 갱신 (JS Controller.go_next_round와 동일)
+        # 4. 다음 턴의 cur_value를 2의 거듭제곱(1 .. <= score // 2)으로 갱신
         score = self.board.max_value
         rand = self.rng.random()
-        base = score // 2  # Math.floor(score/2)
-        # score가 1이면 base=0 -> Math.floor(rand * 0) + 1 = 1
-        self.cur_value = int(rand * base) + 1
+        if score < 2:
+            self.cur_value = 1
+        else:
+            k_max = (score // 2).bit_length() - 1
+            exp = int(rand * (k_max + 1))
+            self.cur_value = 1 << exp
 
     def final_score(self) -> int:
         return self.board.max_value

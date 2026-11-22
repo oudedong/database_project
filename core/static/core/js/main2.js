@@ -82,15 +82,16 @@ class Node_v2{
     _sync_visual(){
         if(this.status === Node_v2.STATUS.EMPTY){
             this.div.dataset.state = 'empty';
-            delete this.div.dataset.value;
+            delete this.div.dataset.tier;
             this.div.textContent = '';
         } else if(this.status === Node_v2.STATUS.ON){
             this.div.dataset.state = 'on';
-            delete this.div.dataset.value;
+            delete this.div.dataset.tier;
             this.div.textContent = '';
         } else {
             this.div.dataset.state = 'off';
-            this.div.dataset.value = this.value >= 128 ? 'high' : String(this.value);
+            const tier = Math.min(7, Math.floor(Math.log2(this.value)));
+            this.div.dataset.tier = String(tier);
             this.div.textContent = this.value;
         }
     }
@@ -316,12 +317,10 @@ class Board{
         if(clicked_node.status === Node_v2.STATUS.ON){
             console.log('clicked_3');
             this.cnt_empty -= 1;//노드한칸 차지...
-            clicked_node.activate_node(this.cur_value);
-            this.temp_context.last_clicked_node.connect(clicked_node);
-            this.temp_context.last_clicked_node = undefined;
-
             const last_clicked_x = this.temp_context.last_clicked_x;
             const last_clicked_y = this.temp_context.last_clicked_y;
+            clicked_node.activate_node(this.cur_value);
+            this.temp_context.last_clicked_node.connect(clicked_node);
             reset_temp_context();
             postprocess()
             go_next_round(last_clicked_x,last_clicked_y, x, y, this.cur_value);
@@ -450,7 +449,13 @@ class Controller{
 
         let score = context.max_value;
         let rand = this.rng.random();
-        this.cur_value = Math.floor(rand*Math.floor(score/2))+1
+        if (score < 2) {
+            this.cur_value = 1;
+        } else {
+            const k_max = Math.floor(Math.log2(Math.floor(score / 2)));
+            const exp = Math.floor(rand * (k_max + 1));
+            this.cur_value = 1 << exp;
+        }
         this.data.actions.push(context.action);
         // console.log("rand(0~1):",rand);
         // console.log("curval:",curVal); 

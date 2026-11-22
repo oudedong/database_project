@@ -122,6 +122,44 @@ class VerifyFullGameLogTests(TestCase):
         self.assertEqual(n1.neighbors, [n2])
         self.assertEqual(n2.neighbors, [n1])
 
+    def test_next_cur_value_is_always_power_of_two(self):
+        """score 값에 관계없이 다음 cur_value는 항상 2^k <= max(1, score // 2)여야 한다."""
+        self.assertEqual(GameSimulator(seed=1, board_size=5).cur_value, 1)
+
+        for score in (2, 4, 8, 16, 32, 64):
+            generated = set()
+            for seed in range(1, 50):
+                sim = GameSimulator(seed=seed, board_size=5)
+                sim.board.max_value = score
+                sim.step({
+                    'x_from': -1,
+                    'y_from': -1,
+                    'x_dest': 0,
+                    'y_dest': 0,
+                    'val': 1,
+                    'max_value': score,
+                })
+                val = sim.cur_value
+                self.assertGreaterEqual(val, 1)
+                self.assertLessEqual(val, max(1, score // 2))
+                self.assertEqual(val & (val - 1), 0, f'{val} is not a power of two')
+                generated.add(val)
+            if score >= 8:
+                self.assertGreater(len(generated), 1)
+
+        # 2의 거듭제곱이 아닌 val(예: 3)은 두 번째 턴에서 절대 생성되지 않으므로 거절되어야 함
+        non_pow2_payload = {
+            'seed': 42,
+            'score': 8,
+            'actions': [
+                {'x_from': -1, 'y_from': -1, 'x_dest': 0, 'y_dest': 0, 'val': 1, 'max_value': 2},
+                {'x_from': -1, 'y_from': -1, 'x_dest': 0, 'y_dest': 0, 'val': 2, 'max_value': 4},
+                {'x_from': -1, 'y_from': -1, 'x_dest': 0, 'y_dest': 0, 'val': 4, 'max_value': 8},
+                {'x_from': 0, 'y_from': 0, 'x_dest': 1, 'y_dest': 0, 'val': 3, 'max_value': 8},
+            ],
+        }
+        self.assertFalse(verify_full_game_log(non_pow2_payload, board_size=5))
+
     def test_empty_actions_or_missing_field_or_exceed_max_actions_fails(self):
         self.assertFalse(verify_full_game_log({'seed': 1, 'score': 1, 'actions': []}, 5))
         self.assertFalse(verify_full_game_log({'seed': 1, 'score': 1}, 5))

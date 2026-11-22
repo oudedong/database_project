@@ -87,14 +87,14 @@
   box-shadow: 0 2px 4px rgba(15, 23, 42, 0.2);
 }
 
-.tile[data-value="1"] { background: #f1f5f9; color: #1e293b; }
-.tile[data-value="2"] { background: #dcfce7; color: #166534; }
-.tile[data-value="4"] { background: #bbf7d0; color: #14532d; }
-.tile[data-value="8"] { background: #fef08a; color: #854d0e; }
-.tile[data-value="16"] { background: #fed7aa; color: #9a3412; }
-.tile[data-value="32"] { background: #fecaca; color: #991b1b; }
-.tile[data-value="64"] { background: #e9d5ff; color: #6b21a8; }
-.tile[data-value="high"] { background: #16a34a; color: #ffffff; }
+.tile[data-tier="0"] { background: #f1f5f9; color: #1e293b; }
+.tile[data-tier="1"] { background: #dcfce7; color: #166534; }
+.tile[data-tier="2"] { background: #bbf7d0; color: #14532d; }
+.tile[data-tier="3"] { background: #fef08a; color: #854d0e; }
+.tile[data-tier="4"] { background: #fed7aa; color: #9a3412; }
+.tile[data-tier="5"] { background: #fecaca; color: #991b1b; }
+.tile[data-tier="6"] { background: #e9d5ff; color: #6b21a8; }
+.tile[data-tier="7"] { background: #16a34a; color: #ffffff; }
 
 .tile.tile-selected {
   outline: 3px solid #f59e0b;
