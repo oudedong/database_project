@@ -3,36 +3,41 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link href="{% static 'core/css/base.css' %}" rel="stylesheet">
     <script type="module" src="{% static 'core/js/base.js' %}" defer></script>
-    <title>{% block title %}base layout{% endblock %}</title>
+    <title>{% block title %}Tree Puzzle{% endblock %}</title>
     {% block etc %}{% endblock %}
   </head>
   <body>
     <p hidden id="logout_url">{% url 'accounts:api:logout' %}</p>
-    <nav class="navbar navbar-expand bg-success bg-opacity-75">
-        <div class="container-fluid">
-            <div class="collapse navbar-collapse " id="navbarText">
-                <ul class ="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link" href="{% url 'core:web:main' %}">main</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'core:web:leaderboard' %}">leader board</a></li>
-                </ul>
-                <span class="navbar-text">
-                    {% if user.is_authenticated %}user:{{user.username}}
-                    {% else %}user:guest 
-                    {% endif %}
-                </span>
-                <span class="navbar-text">
-                    {% if user.is_authenticated %}
-                    <button id="logout" class="btn btn-link">logout</button>
-                    {% else %}
-                    <a class="nav-link" href="{% url 'accounts:web:login' %}?next={{request.get_full_path|urlencode}}">login</a>
-                    {% endif %}
-                </span>
-            </div>
+    <nav class="navbar navbar-expand tp-navbar">
+      <div class="container">
+        <a class="navbar-brand me-3" href="{% url 'core:web:main' %}">Tree Puzzle</a>
+        <ul class="navbar-nav me-auto gap-1">
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'main' %}active{% endif %}" href="{% url 'core:web:main' %}">Play</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'leaderboard' %}active{% endif %}" href="{% url 'core:web:leaderboard' %}">Leaderboard</a>
+          </li>
+        </ul>
+        <div class="d-flex align-items-center gap-2">
+          <span class="tp-user-badge">
+            {% if user.is_authenticated %}{{ user.username }}{% else %}Guest{% endif %}
+          </span>
+          {% if user.is_authenticated %}
+          <button id="logout" class="btn btn-sm btn-outline-light">로그아웃</button>
+          {% else %}
+          <a class="btn btn-sm btn-light text-success fw-semibold" href="{% url 'accounts:web:login' %}?next={{ request.get_full_path|urlencode }}">로그인</a>
+          {% endif %}
         </div>
+      </div>
     </nav>
-    {% block content %}{% endblock %}
+    <main class="container py-4">
+      {% block content %}{% endblock %}
+    </main>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
   </body>
 </html>

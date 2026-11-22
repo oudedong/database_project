@@ -1,12 +1,50 @@
-.rank-out {
-    background-color: white;
+.leaderboard-shell {
+  max-width: 720px;
+  margin: 0 auto;
 }
+
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+}
+
+.rank-badge {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.9rem;
+  background-color: #e2e8f0;
+  color: #334155;
+  flex-shrink: 0;
+}
+
 .rank-1 {
-    background-color: #f2d769;
+  background-color: #fef9c3;
 }
+.rank-1 .rank-badge {
+  background-color: #eab308;
+  color: #ffffff;
+}
+
 .rank-2 {
-    background-color: #e0e4e6;
+  background-color: #f8fafc;
 }
+.rank-2 .rank-badge {
+  background-color: #94a3b8;
+  color: #ffffff;
+}
+
 .rank-3 {
-    background-color: #bc8f71;
+  background-color: #fff7ed;
+}
+.rank-3 .rank-badge {
+  background-color: #c2410c;
+  color: #ffffff;
 }

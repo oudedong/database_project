@@ -369,3 +369,21 @@ class LeaderboardTests(TestCase):
             self.assertEqual(err_res.status_code, 400)
             self.assertFalse(err_res.json()['ok'])
             self.assertIn('error', err_res.json())
+
+
+class PageRenderTests(TestCase):
+    def test_main_and_leaderboard_pages_contain_required_hooks(self):
+        main_res = self.client.get(reverse('core:web:main'))
+        self.assertEqual(main_res.status_code, 200)
+        for hook in ('id="board"', 'id="wires"', 'id="start_url"', 'id="submit_url"', 'id="game-alert"'):
+            self.assertContains(main_res, hook)
+
+        lb_res = self.client.get(reverse('core:web:leaderboard'))
+        self.assertEqual(lb_res.status_code, 200)
+        for hook in ('id="leaderboard"', 'id="leaderboard_api_url"', 'id="pages"'):
+            self.assertContains(lb_res, hook)
+
+        login_res = self.client.get(reverse('accounts:web:login'))
+        self.assertEqual(login_res.status_code, 200)
+        for hook in ('id="loginForm"', 'id="registerForm"', 'id="modeButton"', 'id="error"'):
+            self.assertContains(login_res, hook)

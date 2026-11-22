@@ -58,6 +58,7 @@ class Node_v2{
 
         this.value *= 2;
         this.div.textContent = this.value;
+        this._sync_visual();
         if(this.value > max_value)
             max_value = this.value;
         for(let i = 0; i < found_nodes.length; i++){
@@ -78,11 +79,26 @@ class Node_v2{
         }
         return result;
     }
+    _sync_visual(){
+        if(this.status === Node_v2.STATUS.EMPTY){
+            this.div.dataset.state = 'empty';
+            delete this.div.dataset.value;
+            this.div.textContent = '';
+        } else if(this.status === Node_v2.STATUS.ON){
+            this.div.dataset.state = 'on';
+            delete this.div.dataset.value;
+            this.div.textContent = '';
+        } else {
+            this.div.dataset.state = 'off';
+            this.div.dataset.value = this.value >= 128 ? 'high' : String(this.value);
+            this.div.textContent = this.value;
+        }
+    }
     reset_node(){
         this.value = undefined;
         this.status = Node_v2.STATUS.EMPTY;
-        this.div.textContent = this.value;
-        this.div.style.background = '#7f8c8d';
+        this.div.classList.remove('tile-selected');
+        this._sync_visual();
         for(let i = 0; i < this.neighbors.length; i++){
             const nb = this.neighbors[i];
             nb.neighbors = nb.neighbors.filter((x) => x !== this);
@@ -94,7 +110,7 @@ class Node_v2{
             throw Error('tried to turn on none empty node...');
         }
         this.status = Node_v2.STATUS.ON;
-        this.div.style.background = '#2ecc71';
+        this._sync_visual();
     }
     off_node(){
         if(this.status!=Node_v2.STATUS.ON){
@@ -102,7 +118,7 @@ class Node_v2{
         }
         if(this.value != undefined){
             this.status = Node_v2.STATUS.OFF;
-            this.div.style.background = '#f2f2f2';
+            this._sync_visual();
         }
         else{
             this.reset_node();
@@ -113,16 +129,15 @@ class Node_v2{
             throw Error('tried to activate none on node...');
         }
         this.status = Node_v2.STATUS.OFF;
-        this.value = value
-        this.div.textContent = value;
-        this.div.style.background = '#f2f2f2';
+        this.value = value;
+        this._sync_visual();
     }
     add_value(value){
         if(this.status == Node_v2.STATUS.EMPTY || this.value != value){
             throw Error('no add');
         }
         this.value += value;
-        this.div.textContent = this.value;
+        this._sync_visual();
     }
 }
 class Board{
@@ -146,57 +161,17 @@ class Board{
         };
         this.nodes = [];
 
-        const board_height = document.documentElement.clientHeight/2;
-        const board_width = board_height;
-        const board_gap = board_height/100;
-        const board_padding = board_height/100;
-        this.element_board.style.height = `${board_height}px`;
-        this.element_board.style.width = `${board_width}px`;
-        this.element_board.style.gap = `${board_gap}px`;
-        this.element_board.style.padding = `${board_padding}px`;
-        this.element_board.style.gridTemplateColumns = `repeat(${this.board_size},1fr)`;
-        this.element_board.style.gridTemplateRows = `repeat(${this.board_size},1fr)`;
-
-        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-        marker.setAttribute('id', 'arrowhead'); // 이 ID로 화살촉을 참조합니다.
-        marker.setAttribute('viewBox', '0 0 10 7');
-        marker.setAttribute('markerWidth', '5'); // 마커의 너비
-        marker.setAttribute('markerHeight', '5'); // 마커의 높이
-        marker.setAttribute('refX', '10'); // 선의 끝점이 마커의 어느 x좌표에 맞닿을지
-        marker.setAttribute('refY', '3.5'); // 선의 끝점이 마커의 어느 y좌표에 맞닿을지
-        marker.setAttribute('orient', 'auto'); // 선의 기울기에 따라 화살촉이 자동으로 회전
-        // 3. 화살촉 모양 생성 (<polygon> 또는 <path> 사용)
-        const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-        polygon.setAttribute('points', '0 0, 10 3.5, 0 7'); // 삼각형 모양 정의, 배열과 비슷한(x,y)꼴
-        polygon.setAttribute('fill', 'context-stroke');
-        // 4. 생성한 요소들을 조립
-        marker.appendChild(polygon);
-        defs.appendChild(marker);
-        this.element_wires.appendChild(defs);
-        this.element_wires.style.height = `${board_height}px`;
-        this.element_wires.style.width = `${board_width}px`;
+        this.element_board.style.gridTemplateColumns = `repeat(${this.board_size}, 1fr)`;
+        this.element_board.style.gridTemplateRows = `repeat(${this.board_size}, 1fr)`;
 
         this.edges = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        this.edges.setAttribute('id','edges');
-        this.edges.style.height = `${board_height}px`;
-        this.edges.style.width = `${board_width}px`;
+        this.edges.setAttribute('id', 'edges');
         this.element_wires.appendChild(this.edges);
 
-
-        const tile_height = (board_height - board_gap*(this.board_size-1) - 2*board_padding)/this.board_size;
-        const tile_width = (board_width - board_gap*(this.board_size-1) - 2*board_padding)/this.board_size;
-        const tile_fontsize = tile_width / 10;
-        const tile_borderRadius = tile_width / 10;
         for(let i=0; i < board_size; i++){
             this.nodes.push([]);
             for(let j=0; j < board_size; j++){
-
                 let div = document.createElement('div');
-                div.style.height   = tile_height;
-                div.style.width    = tile_width;
-                div.style.fontSize = tile_fontsize;
-                div.style.borderRadius = tile_borderRadius;
                 div.className = 'tile';
                 div.addEventListener('click',(e)=>{
                     this.clicked(j, i);
@@ -211,15 +186,52 @@ class Board{
         }
         this.nodes[0][0].on_node();
         this.nodes[0][0].activate_node(1);
+        window.addEventListener('resize', () => this.render_edges());
+    }
+    render_edges(){
+        const element_board = this.element_board;
+        const edges = this.edges;
+        function centerOfCell(node){
+            const cr = node.div.getBoundingClientRect();
+            const br = element_board.getBoundingClientRect();
+            return { x: cr.left - br.left + cr.width/2,
+                     y: cr.top  - br.top  + cr.height/2 };
+        }
+        function drawline(node_from, node_to){
+            const node_from_pos = centerOfCell(node_from);
+            const node_to_pos = centerOfCell(node_to);
+            const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+            const x_diff = node_to_pos.x - node_from_pos.x;
+            const y_diff = node_to_pos.y - node_from_pos.y;
+            const ratio = 0.2;
+            node_from_pos.x += x_diff*ratio;
+            node_from_pos.y += y_diff*ratio;
+            node_to_pos.x -= x_diff*ratio;
+            node_to_pos.y -= y_diff*ratio;
+            ln.setAttribute('x1', node_from_pos.x);
+            ln.setAttribute('y1', node_from_pos.y);
+            ln.setAttribute('x2', node_to_pos.x);
+            ln.setAttribute('y2', node_to_pos.y);
+            edges.appendChild(ln);
+        }
+        while (edges.firstChild) edges.removeChild(edges.firstChild);
+        for(let i = 0; i < this.board_size; i++){
+            for(let j = 0; j < this.board_size; j++){
+                const st_node = this.nodes[i][j];
+                for(let k = 0; k < st_node.neighbors.length; k++){
+                    const dest_node = st_node.neighbors[k];
+                    if(st_node.board_index < dest_node.board_index){
+                        drawline(st_node, dest_node);
+                    }
+                }
+            }
+        }
     }
     clicked(x,y){
 
         const clicked_node = this.nodes[y][x];
 
         const postprocess = ()=>{
-
-            const element_board = this.element_board;
-            const edges = this.edges;
             let merge_result = undefined;
 
             if(clicked_node.neighbors.length === 1){
@@ -233,54 +245,7 @@ class Board{
                 this.max_value = Math.max(this.max_value, merge_result.max_value);
                 console.log('merge_result:',merge_result);
             }
-
-            function centerOfCell(node){
-        
-                const cr = node.div.getBoundingClientRect();
-                const br = element_board.getBoundingClientRect();
-
-                return { x: cr.left - br.left + cr.width/2,
-                         y: cr.top  - br.top  + cr.height/2 };
-            }
-            function drawline(node_from, node_to){
-        
-                const node_from_pos = centerOfCell(node_from);
-                const node_to_pos = centerOfCell(node_to);
-                const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
-        
-                //살짝 중앙에서 밀려나게
-                const x_diff = node_to_pos.x - node_from_pos.x;
-                const y_diff = node_to_pos.y - node_from_pos.y;
-                const ratio = 0.2;
-
-                node_from_pos.x += x_diff*ratio;
-                node_from_pos.y += y_diff*ratio;
-                node_to_pos.x -= x_diff*ratio;
-                node_to_pos.y -= y_diff*ratio;
-
-                // console.log(node_from_pos);
-                // console.log(node_to_pos);
-                
-                ln.setAttribute('stroke', 'orange');
-                ln.setAttribute('stroke-width', '2');
-                ln.setAttribute('x1', node_from_pos.x);
-                ln.setAttribute('y1', node_from_pos.y);
-                ln.setAttribute('x2', node_to_pos.x);
-                ln.setAttribute('y2', node_to_pos.y);
-                edges.appendChild(ln);
-            }
-            while (edges.firstChild) edges.removeChild(edges.firstChild);
-            for(let i = 0; i < this.board_size; i++){
-                for(let j = 0; j < this.board_size; j++){
-                    const st_node = this.nodes[i][j];
-                    for(let k = 0; k < st_node.neighbors.length; k++){
-                        const dest_node = st_node.neighbors[k];
-                        if(st_node.board_index < dest_node.board_index){
-                            drawline(st_node, dest_node);
-                        }
-                    }
-                }
-            }
+            this.render_edges();
         };
         const go_next_round = (x_from, y_from, x_dest, y_dest, cur_value) =>{
             const context_to_controller = {
@@ -291,6 +256,9 @@ class Board{
             this.controller.go_next_round(context_to_controller);
         };
         const reset_temp_context = ()=>{
+            if(this.temp_context.last_clicked_node){
+                this.temp_context.last_clicked_node.div.classList.remove('tile-selected');
+            }
             for(let i=0; i < this.temp_context.temp_nodes.length; i++){
                 if(this.temp_context.temp_nodes[i].status === Node_v2.STATUS.ON)
                     this.temp_context.temp_nodes[i].off_node();
@@ -326,6 +294,7 @@ class Board{
             this.temp_context.last_clicked_x = x;//마지막으로 활성화 한 노드
             this.temp_context.last_clicked_y = y;
             this.temp_context.last_clicked_node = clicked_node;
+            clicked_node.div.classList.add('tile-selected');
             for(let i=0; i < 8; i++){
 
                 const cur = Board.adjacent[i]
@@ -437,18 +406,24 @@ class Controller{
                         body  : JSON.stringify(this.data),
                     });
                     if(response.ok){
-                        alert('submit success!')
+                        this.show_alert('점수가 성공적으로 제출되었습니다!', 'success');
                         this.submit_button.disabled = true;
                     }
                     else{
                         let m = await response.json();
-                        alert(`submit failed: ${m.error}`);
+                        this.show_alert(`제출 실패: ${m.error}`, 'danger');
                     }
                 } catch (error) {
-                    alert('server not response');
+                    this.show_alert('서버가 응답하지 않습니다.', 'danger');
                 }
             });
         }
+    }
+    show_alert(message, variant='info'){
+        const box = document.querySelector('#game-alert');
+        if(!box) return;
+        box.className = `alert alert-${variant} mb-0 w-100 text-center fw-semibold`;
+        box.textContent = message;
     }
     async start_session(){
         try {
@@ -494,7 +469,7 @@ class Controller{
                 this.submit_button.disabled = false;
             this.state_panel.end();
             this.data.score = score;
-            alert('game over');
+            this.show_alert(`게임 종료! 최종 점수: ${score}점`, 'warning');
         }
     }
 }

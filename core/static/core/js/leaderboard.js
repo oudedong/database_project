@@ -45,40 +45,55 @@ class Leaderboard{
 
     constructor(list,page_num,page_size){
         Leaderboard.board.innerHTML = '';
+        if (!list || list.length === 0) {
+            const empty = document.createElement('li');
+            empty.className = 'list-group-item text-center text-muted py-4';
+            empty.textContent = '아직 등록된 기록이 없습니다.';
+            Leaderboard.board.appendChild(empty);
+            return;
+        }
         for(let i = 0; i < list.length; i++){
+            const rank = i + 1 + (page_num - 1) * page_size;
+            const li = document.createElement('li');
+            li.className = 'list-group-item leaderboard-row';
 
-            let li = document.createElement('li');
-            li.setAttribute('class','list-group-item d-flex');
+            const left = document.createElement('div');
+            left.className = 'd-flex align-items-center gap-3';
 
-            let div_rank = document.createElement('div');
-            div_rank.setAttribute('class', 'p-2');
-            div_rank.textContent = i+1 + (page_num-1)*page_size;
+            const badge = document.createElement('span');
+            badge.className = 'rank-badge';
+            badge.textContent = rank;
 
-            let div_result = document.createElement('div');
-            div_result.setAttribute('class', 'p-2 flex-grow-1');
+            const info = document.createElement('div');
+            const nameEl = document.createElement('div');
+            nameEl.className = 'fw-bold';
+            nameEl.textContent = list[i].username;
 
+            const dateEl = document.createElement('div');
+            dateEl.className = 'small text-muted';
+            dateEl.textContent = list[i].date;
 
-            let div_name = document.createElement('div');
-            let div_score = document.createElement('div');
-            let div_time = document.createElement('div');
-            let div_date = document.createElement('div');
-            div_name.setAttribute('class', 'name');
-            div_score.setAttribute('class', 'score');
-            div_time.setAttribute('class', 'time');
-            div_time.setAttribute('class', 'date');
+            info.appendChild(nameEl);
+            info.appendChild(dateEl);
+            left.appendChild(badge);
+            left.appendChild(info);
 
-            div_name.textContent = `username: ${list[i].username}`;
-            div_score.textContent = `score: ${list[i].score}`;
-            div_time.textContent = `time: ${list[i].time}`;
-            div_date.textContent = `date: ${list[i].date}`;
+            const right = document.createElement('div');
+            right.className = 'text-end';
 
-            div_result.appendChild(div_name);
-            div_result.appendChild(div_score);
-            div_result.appendChild(div_time);
-            div_result.appendChild(div_date);
+            const scoreEl = document.createElement('div');
+            scoreEl.className = 'fw-bold fs-5 text-success';
+            scoreEl.textContent = `${list[i].score}점`;
 
-            li.appendChild(div_rank);
-            li.appendChild(div_result);
+            const timeEl = document.createElement('div');
+            timeEl.className = 'small text-muted';
+            timeEl.textContent = `${list[i].time}초`;
+
+            right.appendChild(scoreEl);
+            right.appendChild(timeEl);
+
+            li.appendChild(left);
+            li.appendChild(right);
 
             if(page_num == 1 && i < 3){
                 li.classList.add(`rank-${i+1}`);

@@ -1,52 +1,64 @@
 {% extends 'core/base.html' %}
 {% load static %}
-{% block etc %} 
-<link href="{% static 'core/css/main.css' %}" rel="stylesheet"> 
-<script type='module' src="{% static 'core/js/main2.js' %}" defer></script>
+{% block etc %}
+<link href="{% static 'core/css/main.css' %}" rel="stylesheet">
+<script type="module" src="{% static 'core/js/main2.js' %}" defer></script>
 {% endblock %}
-{% block title %}tree_puzzle{% endblock %}
+{% block title %}Tree Puzzle{% endblock %}
 {% block content %}
 <p hidden id="start_url">{% url 'core:api:start' %}</p>
 <p hidden id="submit_url">{% url 'core:api:submit' %}</p>
 <p hidden id="account_check_url">{% url 'accounts:api:check_status' %}</p>
-<div class="d-flex flex-column align-items-center p-2 gap-3">
-    <div class="d-flex flex-column align-items-center p-2 gap-2 border border-success-subtle rounded-1">
-        <!-- 게임판 -->
-        <div id="hud">Score: <span id="score">0</span> • Time: <span id="time">0.0</span>s • next: <span id="next">1</span></div>
-        <div id="board" class="board">
-            <svg id="wires" class="wires" aria-hidden="true"></svg>
-        </div>
-        <div>
-            <button id="restart" class="btn btn-primary">Restart</button>
-            {% if user.is_authenticated %}
-            <button id="submit" class="btn btn-primary" disabled>Submit</button>
-            {% endif %}
-        </div>
-    </div>
-    <!-- 게임규칙 -->
-    <div class="card border-success-subtle shadow-sm">
-        <div class="card-header bg-success-subtle text-success-emphasis fw-semibold">
-            규칙
-        </div>
 
-        <div class="card-body">
-            <ul class="list-group list-group-flush">
-                <li class="list-group-item d-flex align-items-start">
-                    <span class="badge rounded-pill text-bg-success me-2">✓</span>
-                    각 노드는 인접한 칸에 새 노드를 연결할 수 있음. (간선은 방향이 없음)
-                </li>
-                <li class="list-group-item d-flex align-items-start">
-                    <span class="badge rounded-pill text-bg-success me-2">✓</span>
-                    이웃한 끝쪽(차수 1) 노드들의 합이 기준 노드와 같아지면 기준 노드로 합쳐짐.
-                </li>
-            </ul>
-        </div>
-
-        <div class="card-footer bg-body-tertiary">
-            <span class="badge text-bg-warning me-2">주의</span>
-            <small class="text-body-secondary">점수는 <strong>로그인 시에만</strong> 제출 가능함</small>
-        </div>
+<div class="game-shell d-flex flex-column gap-3">
+  <div class="tp-card p-3 p-sm-4 d-flex flex-column align-items-center gap-3">
+    <div id="hud" class="hud-grid">
+      <div class="hud-box">
+        <div class="hud-label">Score</div>
+        <div class="hud-value" id="score">1</div>
+      </div>
+      <div class="hud-box">
+        <div class="hud-label">Time</div>
+        <div class="hud-value"><span id="time">0</span><small class="fs-6 fw-semibold text-muted">s</small></div>
+      </div>
+      <div class="hud-box hud-box-next">
+        <div class="hud-label">Next</div>
+        <div class="hud-value" id="next">1</div>
+      </div>
     </div>
 
+    <div id="board" class="board">
+      <svg id="wires" class="wires" aria-hidden="true"></svg>
+    </div>
+
+    <div id="game-alert" class="w-100 d-none"></div>
+
+    <div class="d-flex gap-2 w-100 justify-content-center">
+      <button id="restart" class="btn btn-outline-secondary px-4 fw-semibold">새 게임</button>
+      {% if user.is_authenticated %}
+      <button id="submit" class="btn btn-success px-4 fw-semibold" disabled>점수 제출</button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="tp-card overflow-hidden">
+    <div class="px-3 py-2 bg-success-subtle text-success-emphasis fw-semibold border-bottom border-success-subtle">
+      게임 규칙
+    </div>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item d-flex align-items-start gap-2">
+        <span class="badge rounded-pill text-bg-success mt-1">1</span>
+        <span>노드를 클릭한 뒤 인접한 빈 칸(8방향)에 다음 숫자를 연결하거나, 같은 숫자를 클릭해 더합니다.</span>
+      </li>
+      <li class="list-group-item d-flex align-items-start gap-2">
+        <span class="badge rounded-pill text-bg-success mt-1">2</span>
+        <span>간선은 방향이 없으며, 이웃한 끝쪽(차수 1) 노드들의 합이 기준 노드와 같아지면 합쳐져 2배가 됩니다.</span>
+      </li>
+      <li class="list-group-item d-flex align-items-start gap-2">
+        <span class="badge rounded-pill text-bg-warning mt-1">!</span>
+        <span class="text-body-secondary">점수 제출은 <strong>로그인 상태</strong>에서 게임 종료 후 가능합니다.</span>
+      </li>
+    </ul>
+  </div>
 </div>
 {% endblock %}

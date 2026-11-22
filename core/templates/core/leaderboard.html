@@ -1,40 +1,43 @@
 {% extends 'core/base.html' %}
 {% load static %}
-{% block title %}leader board{% endblock %}
-{% block etc %} 
-<script type="module" src='{% static "core/js/leaderboard.js" %}' defer></script> 
-<link href='{% static "core/css/leaderboard.css" %}' rel="stylesheet">
+{% block title %}Leaderboard - Tree Puzzle{% endblock %}
+{% block etc %}
+<script type="module" src="{% static 'core/js/leaderboard.js' %}" defer></script>
+<link href="{% static 'core/css/leaderboard.css' %}" rel="stylesheet">
 {% endblock %}
 {% block content %}
 <p hidden id="leaderboard_api_url">{% url 'core:api:leaderboard' %}</p>
-<div class="d-flex flex-column p-2">
-    <p class="fs-2">leader board</p>
-    <div class="card">
-        <div class="card-header">
-            <ul class="nav nav-tabs card-header-tabs">
-                <li class="nav-item">
-                    <a class="nav-link active" id="rank_total" href="">total</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" id="rank_weekly" href="">weekly</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" id="rank_month" href="">month</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" id="rank_user" href="">user</a>
-                </li>
-            </ul>
-        </div>
-        <div class="card-body">
-            <ul class="list-group" id="leaderboard"></ul>
-            <ul class="pagination justify-content-center mt-2">
-                <li class="page-item"><a href='' class="page-link" id="prev">prev</a></li>
-                <div id="pages" class="d-flex">
-                </div>
-                <li class="page-item"><a href='' class="page-link" id="next">next</a></li>
-            </ul>
-        </div>
+<div class="leaderboard-shell d-flex flex-column gap-3">
+  <div class="d-flex align-items-center justify-content-between">
+    <h1 class="h3 mb-0 fw-bold">Leaderboard</h1>
+    <a class="btn btn-sm btn-outline-success fw-semibold" href="{% url 'core:web:main' %}">게임으로 돌아가기</a>
+  </div>
+
+  <div class="tp-card overflow-hidden">
+    <div class="card-header bg-white border-bottom px-3 pt-3 pb-0">
+      <ul class="nav nav-tabs border-bottom-0">
+        <li class="nav-item">
+          <a class="nav-link active fw-semibold" id="rank_total" href="#">전체</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link fw-semibold" id="rank_weekly" href="#">주간</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link fw-semibold" id="rank_month" href="#">월간</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link fw-semibold" id="rank_user" href="#">유저별 최고</a>
+        </li>
+      </ul>
     </div>
+    <div class="card-body p-3">
+      <ul class="list-group list-group-flush" id="leaderboard"></ul>
+      <ul class="pagination justify-content-center mt-3 mb-0">
+        <li class="page-item"><a href="#" class="page-link" id="prev">이전</a></li>
+        <div id="pages" class="d-flex"></div>
+        <li class="page-item"><a href="#" class="page-link" id="next">다음</a></li>
+      </ul>
+    </div>
+  </div>
 </div>
 {% endblock %}
