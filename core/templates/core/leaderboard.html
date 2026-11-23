@@ -2,8 +2,8 @@
 {% load static %}
 {% block title %}Leaderboard - Tree Puzzle{% endblock %}
 {% block etc %}
-<script type="module" src="{% static 'core/js/leaderboard.js' %}" defer></script>
-<link href="{% static 'core/css/leaderboard.css' %}" rel="stylesheet">
+<script type="module" src="{% static 'core/js/leaderboard.js' %}?v=20261123" defer></script>
+<link href="{% static 'core/css/leaderboard.css' %}?v=20261123" rel="stylesheet">
 {% endblock %}
 {% block content %}
 <p hidden id="leaderboard_api_url">{% url 'core:api:leaderboard' %}</p>
