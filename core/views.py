@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 from django.urls import reverse
 from .models import Result, GameSession
@@ -16,6 +17,7 @@ from tree_puzzle.api_utils import api_success, api_error
 
 SESSION_TTL = datetime.timedelta(hours=24)
 
+@ensure_csrf_cookie
 @require_GET
 def main(request):
     return render(request, 'core/main.html')

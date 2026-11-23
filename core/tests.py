@@ -492,6 +492,34 @@ class LeaderboardTests(TestCase):
             self.assertIn('error', err_res.json())
 
 
+    def test_main_page_sets_csrf_cookie_for_guest_start_and_submit(self):
+        csrf_client = self.client_class(enforce_csrf_checks=True)
+        main_res = csrf_client.get(reverse('core:web:main'))
+        self.assertEqual(main_res.status_code, 200)
+        self.assertIn('csrftoken', main_res.cookies)
+
+        csrf_token = main_res.cookies['csrftoken'].value
+        start_res = csrf_client.post(
+            reverse('core:api:start'),
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(start_res.status_code, 200)
+        session_id = start_res.json()['data']['session_id']
+
+        submit_res = csrf_client.post(
+            reverse('core:api:submit'),
+            data=json.dumps({
+                'session_id': session_id,
+                'nickname': 'guest1',
+                'score': 2,
+                'actions': build_valid_actions(),
+            }),
+            content_type='application/json',
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(submit_res.status_code, 200)
+
+
 class PageRenderTests(TestCase):
     def test_main_and_leaderboard_pages_contain_required_hooks(self):
         main_res = self.client.get(reverse('core:web:main'))

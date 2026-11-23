@@ -459,6 +459,7 @@ class Controller{
                     }
                     const response = await fetch(this.submit_url,{                
                         method:'POST',
+                        credentials: 'same-origin',
                         headers : {
                             'Content-Type': 'application/json',
                             'X-CSRFToken': getCookie('csrftoken'),
@@ -470,8 +471,12 @@ class Controller{
                         this.submit_button.disabled = true;
                     }
                     else{
-                        let m = await response.json();
-                        this.show_alert(`제출 실패: ${m.error}`, 'danger');
+                        let errMsg = `HTTP ${response.status}`;
+                        try {
+                            const m = await response.json();
+                            if (m && m.error) errMsg = m.error;
+                        } catch (_) {}
+                        this.show_alert(`제출 실패: ${errMsg}`, 'danger');
                     }
                 } catch (error) {
                     this.show_alert('서버가 응답하지 않습니다.', 'danger');
@@ -489,6 +494,7 @@ class Controller{
         try {
             const response = await fetch(this.start_url, {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'X-CSRFToken': getCookie('csrftoken'),
                 },
