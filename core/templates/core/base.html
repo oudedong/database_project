@@ -23,16 +23,6 @@
             <a class="nav-link {% if request.resolver_match.url_name == 'leaderboard' %}active{% endif %}" href="{% url 'core:web:leaderboard' %}">Leaderboard</a>
           </li>
         </ul>
-        <div class="d-flex align-items-center gap-2">
-          <span class="tp-user-badge">
-            {% if user.is_authenticated %}{{ user.username }}{% else %}Guest{% endif %}
-          </span>
-          {% if user.is_authenticated %}
-          <button id="logout" class="btn btn-sm btn-outline-light">로그아웃</button>
-          {% else %}
-          <a class="btn btn-sm btn-light text-success fw-semibold" href="{% url 'accounts:web:login' %}?next={{ request.get_full_path|urlencode }}">로그인</a>
-          {% endif %}
-        </div>
       </div>
     </nav>
     <main class="container py-4">

@@ -220,28 +220,14 @@ class VerifyFullGameLogTests(TestCase):
 
 class GameSessionAndSubmitTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username='player1', password='Password123!')
-        self.other_user = User.objects.create_user(username='player2', password='Password123!')
         self.start_url = reverse('core:api:start')
         self.submit_url = reverse('core:api:submit')
 
-    def _post_json(self, url, data):
-        return self.client.post(url, data=json.dumps(data), content_type='application/json')
+    def _post_json(self, url, data, client=None):
+        c = client or self.client
+        return c.post(url, data=json.dumps(data), content_type='application/json')
 
-    def test_unauthenticated_start_and_submit_return_401_json(self):
-        start_res = self.client.post(self.start_url)
-        self.assertEqual(start_res.status_code, 401)
-        self.assertFalse(start_res.json()['ok'])
-
-        submit_res = self._post_json(
-            self.submit_url,
-            {'session_id': str(uuid.uuid4()), 'score': 2, 'actions': build_valid_actions()},
-        )
-        self.assertEqual(submit_res.status_code, 401)
-        self.assertFalse(submit_res.json()['ok'])
-
-    def test_start_issues_seed_and_submit_without_client_seed_succeeds(self):
-        self.client.force_login(self.user)
+    def test_guest_start_issues_seed_and_submit_with_nickname_succeeds(self):
         t0 = datetime.datetime(2026, 11, 22, 12, 0, 0, tzinfo=datetime.timezone.utc)
         t1 = t0 + datetime.timedelta(seconds=42)
 
@@ -252,38 +238,57 @@ class GameSessionAndSubmitTests(TestCase):
         self.assertTrue(start_body['ok'])
         session_id = start_body['data']['session_id']
         server_seed = start_body['data']['seed']
+        self.assertEqual(self.client.session.get('active_game_session_id'), session_id)
 
         session = GameSession.objects.get(id=session_id)
         self.assertEqual(session.seed, server_seed)
         self.assertIsNone(session.submitted_at)
 
-        payload = {'session_id': session_id, 'score': 2, 'actions': build_valid_actions()}
+        payload = {
+            'session_id': session_id,
+            'nickname': '  PuzzleKing  ',
+            'score': 2,
+            'actions': build_valid_actions(),
+        }
         with patch('django.utils.timezone.now', return_value=t1):
             submit_res = self._post_json(self.submit_url, payload)
 
         self.assertEqual(submit_res.status_code, 200)
-        self.assertEqual(submit_res.json(), {'ok': True, 'data': {'score': 2, 'time': 42}})
+        self.assertEqual(
+            submit_res.json(),
+            {'ok': True, 'data': {'nickname': 'PuzzleKing', 'score': 2, 'time': 42}},
+        )
         session.refresh_from_db()
         self.assertEqual(session.submitted_at, t1)
+        self.assertEqual(session.result.nickname, 'PuzzleKing')
         self.assertEqual(session.result.score, 2)
         self.assertEqual(session.result.time, 42)
 
+    def test_nickname_validation(self):
+        session_id = self.client.post(self.start_url).json()['data']['session_id']
+        for bad_nick in ('', '   ', 'a' * 21):
+            res = self._post_json(
+                self.submit_url,
+                {
+                    'session_id': session_id,
+                    'nickname': bad_nick,
+                    'score': 2,
+                    'actions': build_valid_actions(),
+                },
+            )
+            self.assertEqual(res.status_code, 400)
+            self.assertFalse(res.json()['ok'])
+
     def test_client_seed_is_ignored_in_submit(self):
         """클라이언트가 다른 seed를 실어 보내더라도 서버는 session.seed로만 검증한다."""
-        self.client.force_login(self.user)
         with patch('core.views.secrets.randbelow', return_value=12345):
             session_id = self.client.post(self.start_url).json()['data']['session_id']
 
-        # (0,0)=2 -> (1,0)=1 -> (0,1)=1 이후 max_value=4가 되는 4턴 로그를 만든 뒤
-        # 4턴째 cur_value가 서버 시드(12345)와 다른 임의 시드 기준이면 실패해야 함
-        from .valify2 import Rng
         server_rng = Rng(12345)
         server_rng.random()  # turn1 -> max=2, cur=1
-        # turn2: (1,0)=1 + (0,0)=2 -> no merge (max=2)
         server_rng.random()
-        # turn3: (0,1)=1 -> (0,0) children sum(1+1)==2 -> merge! (0,0)=4
         r3 = server_rng.random()
-        cur_v4_server = int(r3 * (4 // 2)) + 1  # 1 or 2
+        cur_v4_server = int(r3 * (4 // 2)) + 1
         wrong_v4 = 2 if cur_v4_server == 1 else 1
 
         actions = [
@@ -294,15 +299,25 @@ class GameSessionAndSubmitTests(TestCase):
         ]
         res = self._post_json(
             self.submit_url,
-            {'session_id': session_id, 'seed': 99999, 'score': 4, 'actions': actions},
+            {
+                'session_id': session_id,
+                'nickname': 'tester',
+                'seed': 99999,
+                'score': 4,
+                'actions': actions,
+            },
         )
         self.assertEqual(res.status_code, 400)
         self.assertFalse(res.json()['ok'])
 
     def test_duplicate_submit_is_rejected_with_409(self):
-        self.client.force_login(self.user)
         session_id = self.client.post(self.start_url).json()['data']['session_id']
-        payload = {'session_id': session_id, 'score': 2, 'actions': build_valid_actions()}
+        payload = {
+            'session_id': session_id,
+            'nickname': 'player1',
+            'score': 2,
+            'actions': build_valid_actions(),
+        }
 
         first = self._post_json(self.submit_url, payload)
         self.assertEqual(first.status_code, 200)
@@ -310,16 +325,19 @@ class GameSessionAndSubmitTests(TestCase):
         second = self._post_json(self.submit_url, payload)
         self.assertEqual(second.status_code, 409)
         self.assertEqual(second.json(), {'ok': False, 'error': 'already submitted'})
-        self.assertEqual(Result.objects.filter(user=self.user).count(), 1)
+        self.assertEqual(Result.objects.filter(nickname='player1').count(), 1)
 
     def test_new_start_deletes_previous_unsubmitted_session_only(self):
-        self.client.force_login(self.user)
-
         s1 = self.client.post(self.start_url).json()['data']['session_id']
         self.assertEqual(
             self._post_json(
                 self.submit_url,
-                {'session_id': s1, 'score': 2, 'actions': build_valid_actions()},
+                {
+                    'session_id': s1,
+                    'nickname': 'player1',
+                    'score': 2,
+                    'actions': build_valid_actions(),
+                },
             ).status_code,
             200,
         )
@@ -333,31 +351,78 @@ class GameSessionAndSubmitTests(TestCase):
 
         res_s2 = self._post_json(
             self.submit_url,
-            {'session_id': s2, 'score': 2, 'actions': build_valid_actions()},
+            {
+                'session_id': s2,
+                'nickname': 'player1',
+                'score': 2,
+                'actions': build_valid_actions(),
+            },
         )
-        self.assertEqual(res_s2.status_code, 404)
+        self.assertEqual(res_s2.status_code, 403)
 
         res_s3 = self._post_json(
             self.submit_url,
-            {'session_id': s3, 'score': 2, 'actions': build_valid_actions()},
+            {
+                'session_id': s3,
+                'nickname': 'player1',
+                'score': 2,
+                'actions': build_valid_actions(),
+            },
         )
         self.assertEqual(res_s3.status_code, 200)
 
-    def test_cannot_submit_other_users_session(self):
-        self.client.force_login(self.user)
+    def test_expired_unsubmitted_sessions_cleaned_up_on_start_and_rejected_on_submit(self):
+        t0 = datetime.datetime(2026, 11, 20, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        t_expired = t0 + datetime.timedelta(hours=25)
+
+        other_client = self.client_class()
+        with patch('django.utils.timezone.now', return_value=t0):
+            old_sid = other_client.post(self.start_url).json()['data']['session_id']
+
+        # 25시간 지난 만료 세션으로 제출 시 거절
+        with patch('django.utils.timezone.now', return_value=t_expired):
+            exp_res = self._post_json(
+                self.submit_url,
+                {
+                    'session_id': old_sid,
+                    'nickname': 'olduser',
+                    'score': 2,
+                    'actions': build_valid_actions(),
+                },
+                client=other_client,
+            )
+            self.assertEqual(exp_res.status_code, 400)
+            self.assertEqual(exp_res.json()['error'], 'session expired')
+
+            # 다른 유저가 start_game 호출 시 24시간 지난 미제출 세션은 일괄 삭제됨
+            self.client.post(self.start_url)
+        self.assertFalse(GameSession.objects.filter(id=old_sid).exists())
+
+    def test_cannot_submit_other_browser_session(self):
         s1 = self.client.post(self.start_url).json()['data']['session_id']
 
-        self.client.force_login(self.other_user)
+        other_client = self.client_class()
+        other_client.post(self.start_url)
         res = self._post_json(
             self.submit_url,
-            {'session_id': s1, 'score': 2, 'actions': build_valid_actions()},
+            {
+                'session_id': s1,
+                'nickname': 'hijack',
+                'score': 2,
+                'actions': build_valid_actions(),
+            },
+            client=other_client,
         )
-        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.status_code, 403)
 
     def test_failed_validation_does_not_mark_session_submitted(self):
-        self.client.force_login(self.user)
         session_id = self.client.post(self.start_url).json()['data']['session_id']
-        bad_payload = {'session_id': session_id, 'score': 999, 'actions': build_valid_actions()}
+        bad_payload = {
+            'session_id': session_id,
+            'nickname': 'player1',
+            'score': 999,
+            'actions': build_valid_actions(),
+        }
 
         res = self._post_json(self.submit_url, bad_payload)
         self.assertEqual(res.status_code, 400)
@@ -369,13 +434,11 @@ class GameSessionAndSubmitTests(TestCase):
 
 class LeaderboardTests(TestCase):
     def setUp(self):
-        self.u1 = User.objects.create_user(username='u1', password='Password123!')
-        self.u2 = User.objects.create_user(username='u2', password='Password123!')
         self.url = reverse('core:api:leaderboard')
 
-        Result.objects.create(user=self.u1, score=100, time=30, date=datetime.date(2026, 11, 1))
-        Result.objects.create(user=self.u1, score=200, time=50, date=datetime.date(2026, 11, 10))
-        Result.objects.create(user=self.u2, score=200, time=40, date=datetime.date(2026, 11, 15))
+        Result.objects.create(nickname='u1', score=100, time=30, date=datetime.date(2026, 11, 1))
+        Result.objects.create(nickname='u1', score=200, time=50, date=datetime.date(2026, 11, 10))
+        Result.objects.create(nickname='u2', score=200, time=40, date=datetime.date(2026, 11, 15))
 
     def test_date_rank_all_and_range_filter(self):
         res_all = self.client.get(self.url, {'type': 'date_rank', 'page_size': 10})
@@ -433,7 +496,7 @@ class PageRenderTests(TestCase):
     def test_main_and_leaderboard_pages_contain_required_hooks(self):
         main_res = self.client.get(reverse('core:web:main'))
         self.assertEqual(main_res.status_code, 200)
-        for hook in ('id="board"', 'id="wires"', 'id="start_url"', 'id="submit_url"', 'id="game-alert"'):
+        for hook in ('id="board"', 'id="wires"', 'id="start_url"', 'id="submit_url"', 'id="game-alert"', 'id="nickname"', 'id="submit"'):
             self.assertContains(main_res, hook)
 
         lb_res = self.client.get(reverse('core:web:leaderboard'))

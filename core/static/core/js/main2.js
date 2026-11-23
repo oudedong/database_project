@@ -413,6 +413,7 @@ class Controller{
     constructor(){
         this.data = {
             session_id: null,
+            nickname: '',
             score : null,
             actions:[],
         };
@@ -434,16 +435,24 @@ class Controller{
         this.login_check_url = document.querySelector('#account_check_url').textContent;
 
         this.submit_button = document.querySelector('#submit');
+        this.nickname_input = document.querySelector('#nickname');
         this.restart_button = document.querySelector('#restart');
         this.restart_button.addEventListener('click',(e)=>{
             location.reload();
         })
         this.session_promise = null;
-        if (this.submit_button && this.start_url){
+        if (this.start_url){
             this.session_promise = this.start_session();
         }
         if (this.submit_button){
             this.submit_button.addEventListener('click', async ()=>{
+                const nickname = (this.nickname_input?.value || '').trim();
+                if (!nickname || nickname.length > 20) {
+                    this.show_alert('닉네임을 1~20자로 입력해 주세요.', 'warning');
+                    this.nickname_input?.focus();
+                    return;
+                }
+                this.data.nickname = nickname;
                 try {
                     if (this.session_promise) {
                         await this.session_promise;
