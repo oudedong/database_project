@@ -23,7 +23,7 @@ class Node_v2{
         this.neighbors.push(node);
         node.neighbors.push(this);
     }
-    merge_from_leaves(){
+    async merge_from_leaves(on_preview=undefined, on_after_step=undefined){
         let max_value = 0;
         let cnt_merge = 0;
 
@@ -59,6 +59,10 @@ class Node_v2{
             let ok = permutation(possibles, 0, 0, this.value, found_nodes);
             if(!ok) break;
 
+            if(on_preview){
+                await on_preview(this, found_nodes);
+            }
+
             this.value *= 2;
             this._sync_visual();
             if(this.value > max_value)
@@ -67,6 +71,9 @@ class Node_v2{
                 found_nodes[i].reset_node();
             }
             cnt_merge += found_nodes.length;
+            if(on_after_step){
+                on_after_step();
+            }
             if(this.neighbors.length <= 1) break;
         }
 
@@ -78,7 +85,7 @@ class Node_v2{
         };
 
         if(this.neighbors.length === 1){
-            let temp = this.neighbors[0].merge_from_leaves();
+            let temp = await this.neighbors[0].merge_from_leaves(on_preview, on_after_step);
             if(temp != undefined){
                 result.max_value = Math.max(result.max_value, temp.max_value);
                 result.cnt_merge += temp.cnt_merge;
@@ -194,7 +201,18 @@ class Board{
         }
         this.nodes[0][0].on_node();
         this.nodes[0][0].activate_node(1);
+        this.is_animating = false;
+        this.highlight_matches();
         window.addEventListener('resize', () => this.render_edges());
+    }
+    highlight_matches(){
+        for(let i = 0; i < this.board_size; i++){
+            for(let j = 0; j < this.board_size; j++){
+                const node = this.nodes[i][j];
+                const matched = (node.status === Node_v2.STATUS.OFF && node.value === this.cur_value);
+                node.div.classList.toggle('tile-match', matched);
+            }
+        }
     }
     render_edges(){
         const element_board = this.element_board;
@@ -235,18 +253,34 @@ class Board{
             }
         }
     }
-    clicked(x,y){
+    async clicked(x,y){
+        if(this.is_animating) return;
 
         const clicked_node = this.nodes[y][x];
 
-        const postprocess = ()=>{
-            let merge_result = undefined;
+        const postprocess = async ()=>{
+            this.render_edges();
+            const on_preview = async (target, leaves) => {
+                target.div.classList.add('tile-merge-target');
+                for(let i = 0; i < leaves.length; i++){
+                    leaves[i].div.classList.add('tile-merge-leaf');
+                }
+                await new Promise((resolve) => setTimeout(resolve, 350));
+                target.div.classList.remove('tile-merge-target');
+                for(let i = 0; i < leaves.length; i++){
+                    leaves[i].div.classList.remove('tile-merge-leaf');
+                }
+            };
+            const on_after_step = () => {
+                this.render_edges();
+            };
 
+            let merge_result = undefined;
             if(clicked_node.neighbors.length === 1){
-                merge_result = clicked_node.neighbors[0].merge_from_leaves();
+                merge_result = await clicked_node.neighbors[0].merge_from_leaves(on_preview, on_after_step);
             }
             else if(clicked_node.neighbors.length > 1){
-                merge_result = clicked_node.merge_from_leaves();
+                merge_result = await clicked_node.merge_from_leaves(on_preview, on_after_step);
             }
             if(merge_result != undefined){
                 this.cnt_empty += merge_result.cnt_merge;
@@ -255,13 +289,13 @@ class Board{
             }
             this.render_edges();
         };
-        const go_next_round = (x_from, y_from, x_dest, y_dest, cur_value) =>{
+        const go_next_round = async (x_from, y_from, x_dest, y_dest, cur_value) =>{
             const context_to_controller = {
                 action:{x_from:x_from, y_from:y_from,x_dest:x_dest, y_dest:y_dest, val:cur_value, max_value:this.max_value},
                 max_value:this.max_value,
                 cnt_empty:this.cnt_empty
             };
-            this.controller.go_next_round(context_to_controller);
+            await this.controller.go_next_round(context_to_controller);
         };
         const reset_temp_context = ()=>{
             if(this.temp_context.last_clicked_node){
@@ -289,11 +323,16 @@ class Board{
         }
         if(clicked_node.value == this.cur_value){
             console.log('clicked_1');
-            clicked_node.add_value(this.cur_value);
-            this.max_value = Math.max(this.max_value, clicked_node.value);
-            reset_temp_context();
-            postprocess();
-            go_next_round(-1, -1, x, y, this.cur_value);
+            this.is_animating = true;
+            try {
+                clicked_node.add_value(this.cur_value);
+                this.max_value = Math.max(this.max_value, clicked_node.value);
+                reset_temp_context();
+                await postprocess();
+                await go_next_round(-1, -1, x, y, this.cur_value);
+            } finally {
+                this.is_animating = false;
+            }
             return;
         }
         if(clicked_node.status === Node_v2.STATUS.OFF){
@@ -323,18 +362,24 @@ class Board{
         }
         if(clicked_node.status === Node_v2.STATUS.ON){
             console.log('clicked_3');
-            this.cnt_empty -= 1;//노드한칸 차지...
-            const last_clicked_x = this.temp_context.last_clicked_x;
-            const last_clicked_y = this.temp_context.last_clicked_y;
-            clicked_node.activate_node(this.cur_value);
-            this.temp_context.last_clicked_node.connect(clicked_node);
-            reset_temp_context();
-            postprocess()
-            go_next_round(last_clicked_x,last_clicked_y, x, y, this.cur_value);
+            this.is_animating = true;
+            try {
+                this.cnt_empty -= 1;//노드한칸 차지...
+                const last_clicked_x = this.temp_context.last_clicked_x;
+                const last_clicked_y = this.temp_context.last_clicked_y;
+                clicked_node.activate_node(this.cur_value);
+                this.temp_context.last_clicked_node.connect(clicked_node);
+                reset_temp_context();
+                await postprocess();
+                await go_next_round(last_clicked_x,last_clicked_y, x, y, this.cur_value);
+            } finally {
+                this.is_animating = false;
+            }
         }
     }
     update(context){
         this.cur_value = context.cur_value;
+        this.highlight_matches();
     }
 }
 class State_panel{

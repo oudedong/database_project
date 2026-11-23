@@ -102,6 +102,33 @@
   transform: scale(1.04);
 }
 
+.tile.tile-match {
+  box-shadow: 0 0 0 3px #38bdf8, 0 4px 10px rgba(56, 189, 248, 0.35);
+  animation: tp-match-pulse 1.4s ease-in-out infinite;
+}
+
+.tile.tile-merge-leaf {
+  outline: 3px dashed #ef4444;
+  outline-offset: -2px;
+  transform: scale(0.92);
+  opacity: 0.78;
+}
+
+.tile.tile-merge-target {
+  box-shadow: 0 0 0 4px #facc15, 0 0 18px rgba(250, 204, 21, 0.7);
+  transform: scale(1.08);
+  z-index: 2;
+}
+
+@keyframes tp-match-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.85), 0 4px 10px rgba(56, 189, 248, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(56, 189, 248, 1), 0 4px 14px rgba(56, 189, 248, 0.5);
+  }
+}
+
 .wires {
   position: absolute;
   inset: 0;
