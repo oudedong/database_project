@@ -524,15 +524,34 @@ class PageRenderTests(TestCase):
     def test_main_and_leaderboard_pages_contain_required_hooks(self):
         main_res = self.client.get(reverse('core:web:main'))
         self.assertEqual(main_res.status_code, 200)
-        for hook in ('id="board"', 'id="wires"', 'id="start_url"', 'id="submit_url"', 'id="game-alert"', 'id="nickname"', 'id="submit"'):
+        for hook in (
+            'id="board"', 'id="wires"', 'id="start_url"', 'id="submit_url"',
+            'id="game-alert"', 'id="nickname"', 'id="submit"',
+            'id="lang-toggle"', 'data-lang="ko"', 'data-lang="en"', 'data-i18n="rules.title"',
+        ):
             self.assertContains(main_res, hook)
 
         lb_res = self.client.get(reverse('core:web:leaderboard'))
         self.assertEqual(lb_res.status_code, 200)
-        for hook in ('id="leaderboard"', 'id="leaderboard_api_url"', 'id="pages"'):
+        for hook in ('id="leaderboard"', 'id="leaderboard_api_url"', 'id="pages"', 'id="lang-toggle"', 'data-i18n="lb.tabTotal"'):
             self.assertContains(lb_res, hook)
 
         login_res = self.client.get(reverse('accounts:web:login'))
         self.assertEqual(login_res.status_code, 200)
         for hook in ('id="loginForm"', 'id="registerForm"', 'id="modeButton"', 'id="error"'):
             self.assertContains(login_res, hook)
+
+    def test_i18n_ko_and_en_keys_match(self):
+        import pathlib
+        import re
+
+        src = (pathlib.Path(__file__).resolve().parent / 'static/core/js/i18n.js').read_text(encoding='utf-8')
+        ko_block = re.search(r'\bko:\s*\{(.*?)\n\s*\},', src, re.S)
+        en_block = re.search(r'\ben:\s*\{(.*?)\n\s*\},', src, re.S)
+        self.assertIsNotNone(ko_block)
+        self.assertIsNotNone(en_block)
+
+        ko_keys = set(re.findall(r"'([^']+)'\s*:", ko_block.group(1)))
+        en_keys = set(re.findall(r"'([^']+)'\s*:", en_block.group(1)))
+        self.assertGreater(len(ko_keys), 0)
+        self.assertEqual(ko_keys, en_keys)

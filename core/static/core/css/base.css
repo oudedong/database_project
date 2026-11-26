@@ -55,3 +55,28 @@ body {
   border-radius: 1rem;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
+
+.tp-lang-toggle {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.tp-lang-toggle button {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.tp-lang-toggle button.active {
+  background: #ffffff;
+  color: #166534;
+}

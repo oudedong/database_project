@@ -1,3 +1,5 @@
+import { t } from './i18n.js?v=20261126';
+
 const learderBoard = document.querySelector('#leaderboard');
 const leaderboard_api_url = document.querySelector('#leaderboard_api_url').textContent;
 
@@ -44,11 +46,12 @@ class Leaderboard{
     static board = document.querySelector('#leaderboard');
 
     constructor(list,page_num,page_size){
+        Leaderboard.lastState = { list, page_num, page_size };
         Leaderboard.board.innerHTML = '';
         if (!list || list.length === 0) {
             const empty = document.createElement('li');
             empty.className = 'list-group-item text-center text-muted py-4';
-            empty.textContent = '아직 등록된 기록이 없습니다.';
+            empty.textContent = t('lb.empty');
             Leaderboard.board.appendChild(empty);
             return;
         }
@@ -83,11 +86,11 @@ class Leaderboard{
 
             const scoreEl = document.createElement('div');
             scoreEl.className = 'fw-bold fs-5 text-success';
-            scoreEl.textContent = `${list[i].score}점`;
+            scoreEl.textContent = t('lb.scoreUnit', { score: list[i].score });
 
             const timeEl = document.createElement('div');
             timeEl.className = 'small text-muted';
-            timeEl.textContent = `${list[i].time}초`;
+            timeEl.textContent = t('lb.timeUnit', { time: list[i].time });
 
             right.appendChild(scoreEl);
             right.appendChild(timeEl);
@@ -204,7 +207,7 @@ async function get_page(page, detail, page_size=10){
     const response = await fetch(url);
     if(!response.ok){
         let err = await response.json();
-        alert(`failed to get leaderboard...: ${err.error}`);
+        alert(t('lb.loadFailed', { error: err.error }));
         return { scores: [], page_info: { prev: false, next: false, curPage: 1, num_pages: 1 } };
     }
     const payload = await response.json();
@@ -249,6 +252,13 @@ Category_tabs.add_tab(document.querySelector('#rank_total'), {type:'date_rank',t
 Category_tabs.add_tab(document.querySelector('#rank_weekly'), {type:'date_rank',time_diff:-7});
 Category_tabs.add_tab(document.querySelector('#rank_month'), {type:'date_rank',time_diff:-31});
 Category_tabs.add_tab(document.querySelector('#rank_user'), {type:'user_rank'});
+
+document.addEventListener('tp:langchange', () => {
+    if (Leaderboard.lastState) {
+        const { list, page_num, page_size } = Leaderboard.lastState;
+        new Leaderboard(list, page_num, page_size);
+    }
+});
 
 let temp = await get_page(1,{type:'date_rank',time_diff:null},10);
 new Leaderboard(temp.scores,1,10);

@@ -1,4 +1,5 @@
 import { getCookie } from "../../../../static/js/common.js";
+import { t } from "./i18n.js?v=20261126";
 
 class Node_v2{
 
@@ -444,11 +445,17 @@ class Controller{
         if (this.start_url){
             this.session_promise = this.start_session();
         }
+        this.last_alert = null;
+        document.addEventListener('tp:langchange', () => {
+            if (this.last_alert) {
+                this.show_alert(this.last_alert.key, this.last_alert.variant, this.last_alert.params);
+            }
+        });
         if (this.submit_button){
             this.submit_button.addEventListener('click', async ()=>{
                 const nickname = (this.nickname_input?.value || '').trim();
                 if (!nickname || nickname.length > 20) {
-                    this.show_alert('닉네임을 1~20자로 입력해 주세요.', 'warning');
+                    this.show_alert('alert.nicknameRequired', 'warning');
                     this.nickname_input?.focus();
                     return;
                 }
@@ -467,7 +474,7 @@ class Controller{
                         body  : JSON.stringify(this.data),
                     });
                     if(response.ok){
-                        this.show_alert('점수가 성공적으로 제출되었습니다!', 'success');
+                        this.show_alert('alert.submitSuccess', 'success');
                         this.submit_button.disabled = true;
                     }
                     else{
@@ -476,19 +483,20 @@ class Controller{
                             const m = await response.json();
                             if (m && m.error) errMsg = m.error;
                         } catch (_) {}
-                        this.show_alert(`제출 실패: ${errMsg}`, 'danger');
+                        this.show_alert('alert.submitFailed', 'danger', { error: errMsg });
                     }
                 } catch (error) {
-                    this.show_alert('서버가 응답하지 않습니다.', 'danger');
+                    this.show_alert('alert.serverError', 'danger');
                 }
             });
         }
     }
-    show_alert(message, variant='info'){
+    show_alert(key, variant='info', params={}){
+        this.last_alert = { key, variant, params };
         const box = document.querySelector('#game-alert');
         if(!box) return;
         box.className = `alert alert-${variant} mb-0 w-100 text-center fw-semibold`;
-        box.textContent = message;
+        box.textContent = t(key, params);
     }
     async start_session(){
         try {
@@ -541,7 +549,7 @@ class Controller{
                 this.submit_button.disabled = false;
             this.state_panel.end();
             this.data.score = score;
-            this.show_alert(`게임 종료! 최종 점수: ${score}점`, 'warning');
+            this.show_alert('alert.gameOver', 'warning', { score });
         }
     }
 }

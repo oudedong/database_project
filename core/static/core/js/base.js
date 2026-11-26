@@ -1,4 +1,7 @@
 import {getCookie} from '../../../../static/js/common.js';
+import {initI18n} from './i18n.js?v=20261126';
+
+initI18n();
 
 const csrftoken = getCookie('csrftoken');
 const logout_button = document.querySelector('#logout');

@@ -5,8 +5,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
-    <link href="{% static 'core/css/base.css' %}?v=20261123" rel="stylesheet">
-    <script type="module" src="{% static 'core/js/base.js' %}?v=20261123" defer></script>
+    <link href="{% static 'core/css/base.css' %}?v=20261126" rel="stylesheet">
+    <script type="module" src="{% static 'core/js/base.js' %}?v=20261126" defer></script>
     <title>{% block title %}Tree Puzzle{% endblock %}</title>
     {% block etc %}{% endblock %}
   </head>
@@ -17,12 +17,16 @@
         <a class="navbar-brand me-3" href="{% url 'core:web:main' %}">Tree Puzzle</a>
         <ul class="navbar-nav me-auto gap-1">
           <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'main' %}active{% endif %}" href="{% url 'core:web:main' %}">Play</a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'main' %}active{% endif %}" href="{% url 'core:web:main' %}" data-i18n="nav.play">Play</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'leaderboard' %}active{% endif %}" href="{% url 'core:web:leaderboard' %}">Leaderboard</a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'leaderboard' %}active{% endif %}" href="{% url 'core:web:leaderboard' %}" data-i18n="nav.leaderboard">Leaderboard</a>
           </li>
         </ul>
+        <div id="lang-toggle" class="tp-lang-toggle" role="group" aria-label="Language">
+          <button type="button" data-lang="ko">KO</button>
+          <button type="button" data-lang="en">EN</button>
+        </div>
       </div>
     </nav>
     <main class="container py-4">

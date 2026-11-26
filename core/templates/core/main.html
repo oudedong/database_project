@@ -1,8 +1,8 @@
 {% extends 'core/base.html' %}
 {% load static %}
 {% block etc %}
-<link href="{% static 'core/css/main.css' %}?v=20261123" rel="stylesheet">
-<script type="module" src="{% static 'core/js/main2.js' %}?v=20261123" defer></script>
+<link href="{% static 'core/css/main.css' %}?v=20261126" rel="stylesheet">
+<script type="module" src="{% static 'core/js/main2.js' %}?v=20261126" defer></script>
 {% endblock %}
 {% block title %}Tree Puzzle{% endblock %}
 {% block content %}
@@ -14,15 +14,15 @@
   <div class="tp-card p-3 p-sm-4 d-flex flex-column align-items-center gap-3">
     <div id="hud" class="hud-grid">
       <div class="hud-box">
-        <div class="hud-label">Score</div>
+        <div class="hud-label" data-i18n="hud.score">Score</div>
         <div class="hud-value" id="score">1</div>
       </div>
       <div class="hud-box">
-        <div class="hud-label">Time</div>
+        <div class="hud-label" data-i18n="hud.time">Time</div>
         <div class="hud-value"><span id="time">0</span><small class="fs-6 fw-semibold text-muted">s</small></div>
       </div>
       <div class="hud-box hud-box-next">
-        <div class="hud-label">Next</div>
+        <div class="hud-label" data-i18n="hud.next">Next</div>
         <div class="hud-value" id="next">1</div>
       </div>
     </div>
@@ -34,28 +34,28 @@
     <div id="game-alert" class="w-100 d-none"></div>
 
     <div class="d-flex flex-wrap gap-2 w-100 justify-content-center align-items-center">
-      <button id="restart" class="btn btn-outline-secondary px-4 fw-semibold">새 게임</button>
-      <input id="nickname" type="text" maxlength="20" class="form-control" style="max-width: 180px;" placeholder="닉네임 (1~20자)">
-      <button id="submit" class="btn btn-success px-4 fw-semibold" disabled>점수 제출</button>
+      <button id="restart" class="btn btn-outline-secondary px-4 fw-semibold" data-i18n="game.restart">새 게임</button>
+      <input id="nickname" type="text" maxlength="20" class="form-control" style="max-width: 180px;" placeholder="닉네임 (1~20자)" data-i18n-placeholder="game.nicknamePlaceholder">
+      <button id="submit" class="btn btn-success px-4 fw-semibold" disabled data-i18n="game.submit">점수 제출</button>
     </div>
   </div>
 
   <div class="tp-card overflow-hidden">
-    <div class="px-3 py-2 bg-success-subtle text-success-emphasis fw-semibold border-bottom border-success-subtle">
+    <div class="px-3 py-2 bg-success-subtle text-success-emphasis fw-semibold border-bottom border-success-subtle" data-i18n="rules.title">
       게임 규칙
     </div>
     <ul class="list-group list-group-flush">
       <li class="list-group-item d-flex align-items-start gap-2">
         <span class="badge rounded-pill text-bg-success mt-1">1</span>
-        <span>노드를 클릭한 뒤 인접한 빈 칸(8방향)에 다음 숫자를 연결하거나, 같은 숫자를 클릭해 더합니다.</span>
+        <span data-i18n="rules.step1">노드를 클릭한 뒤 인접한 빈 칸(8방향)에 다음 숫자를 연결하거나, 같은 숫자를 클릭해 더합니다.</span>
       </li>
       <li class="list-group-item d-flex align-items-start gap-2">
         <span class="badge rounded-pill text-bg-success mt-1">2</span>
-        <span>간선은 방향이 없으며, 이웃한 끝쪽(차수 1) 노드들의 합이 기준 노드와 같아지면 합쳐져 2배가 됩니다.</span>
+        <span data-i18n="rules.step2">간선은 방향이 없으며, 이웃한 끝쪽(차수 1) 노드들의 합이 기준 노드와 같아지면 합쳐져 2배가 됩니다.</span>
       </li>
       <li class="list-group-item d-flex align-items-start gap-2">
         <span class="badge rounded-pill text-bg-warning mt-1">!</span>
-        <span class="text-body-secondary">게임 종료 후 <strong>원하는 닉네임</strong>을 입력해 리더보드에 점수를 제출할 수 있습니다.</span>
+        <span class="text-body-secondary" data-i18n-html="rules.step3Html">게임 종료 후 <strong>원하는 닉네임</strong>을 입력해 리더보드에 점수를 제출할 수 있습니다.</span>
       </li>
     </ul>
   </div>
